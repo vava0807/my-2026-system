@@ -150,20 +150,20 @@ function initThreeJS() {
         renderer.render(scene, camera);
     }
 
-    // 互動事件：滑鼠按下 (抓取)
-    renderer.domElement.addEventListener('mousedown', (e) => {
+    // 互動事件：滑鼠/觸控按下 (抓取)
+    renderer.domElement.addEventListener('pointerdown', (e) => {
+        console.log('--- Pointer Down ---', e.clientX, e.clientY);
         const rect = renderer.domElement.getBoundingClientRect();
         mouse.x = ((e.clientX - rect.left) / rect.width) * 2 - 1;
         mouse.y = -((e.clientY - rect.top) / rect.height) * 2 + 1;
 
         raycaster.setFromCamera(mouse, camera);
 
-        // 檢查是否點到寵物 (我們檢查 petObj.mesh)
         const meshes = petObjects.map(p => p.mesh);
         const intersects = raycaster.intersectObjects(meshes, true);
+        console.log('Intersects:', intersects.length);
 
         if (intersects.length > 0) {
-            // 找到點擊到的頂層 Group
             let object = intersects[0].object;
             while (object.parent && !petObjects.find(p => p.mesh === object)) {
                 object = object.parent;
@@ -171,21 +171,20 @@ function initThreeJS() {
 
             grabbedPet = petObjects.find(p => p.mesh === object);
             if (grabbedPet) {
+                console.log('Grabbed:', grabbedPet.breed);
                 grabbedPet.walking = false;
-                if (controls) controls.enabled = false; // 抓取時禁用相機旋轉
+                if (controls) controls.enabled = false;
                 document.body.style.cursor = 'grabbing';
             }
         }
     });
 
-    // 互動事件：滑鼠移動 (拖拽)
-    renderer.domElement.addEventListener('mousemove', (e) => {
+    window.addEventListener('pointermove', (e) => {
         if (!grabbedPet) {
-            // 沒抓取時，Hover 效果
             const rect = renderer.domElement.getBoundingClientRect();
-            mouse.x = ((e.clientX - rect.left) / rect.width) * 2 - 1;
-            mouse.y = -((e.clientY - rect.top) / rect.height) * 2 + 1;
-            raycaster.setFromCamera(mouse, camera);
+            const mx = ((e.clientX - rect.left) / rect.width) * 2 - 1;
+            const my = -((e.clientY - rect.top) / rect.height) * 2 + 1;
+            raycaster.setFromCamera({ x: mx, y: my }, camera);
             const intersects = raycaster.intersectObjects(petObjects.map(p => p.mesh), true);
             renderer.domElement.style.cursor = intersects.length > 0 ? 'pointer' : 'default';
             return;
@@ -194,23 +193,20 @@ function initThreeJS() {
         const rect = renderer.domElement.getBoundingClientRect();
         mouse.x = ((e.clientX - rect.left) / rect.width) * 2 - 1;
         mouse.y = -((e.clientY - rect.top) / rect.height) * 2 + 1;
-
         raycaster.setFromCamera(mouse, camera);
 
-        // 計算鼠標在地面平面上的交點
-        let intersects = new THREE.Vector3();
-        if (raycaster.ray.intersectPlane(dragPlane, intersects)) {
-            grabbedPet.mesh.position.x = intersects.x;
-            grabbedPet.mesh.position.z = intersects.z;
-            grabbedPet.mesh.position.y = 20; // 抓起來的高度
+        let groundIntersects = new THREE.Vector3();
+        if (raycaster.ray.intersectPlane(dragPlane, groundIntersects)) {
+            grabbedPet.mesh.position.x = groundIntersects.x;
+            grabbedPet.mesh.position.z = groundIntersects.z;
+            grabbedPet.mesh.position.y = 20;
         }
     });
 
-    // 互動事件：滑鼠放開 (放下)
-    window.addEventListener('mouseup', () => {
+    window.addEventListener('pointerup', () => {
         if (grabbedPet) {
             grabbedPet.walking = true;
-            grabbedPet.mesh.position.y = 0; // 放回地面
+            grabbedPet.mesh.position.y = 0;
             grabbedPet = null;
             if (controls) controls.enabled = true;
             document.body.style.cursor = 'default';
@@ -553,7 +549,7 @@ function saveDiary() {
     const content = diaryContent.value.trim();
     if (!content) { alert('請輸入內容'); return; }
 
-    const type = ['dog', 'cat'][Math.floor(Math.random() * 2)];
+    const type = 'dog'; // 日記獎勵一定是狗
     const breeds = PET_BREEDS[type];
     const breed = breeds[Math.floor(Math.random() * breeds.length)];
 
@@ -565,7 +561,7 @@ function saveDiary() {
     });
 
     stats.totalDiaries++;
-    addPet(type); // 這裡會自動選品種
+    addPet(type);
     diaryContent.value = '';
     saveAllData();
     updateUI();
@@ -621,6 +617,7 @@ function addNote() {
 }
 
 function deleteNote(id) {
+    // 檢查這條筆記是否已經完成（有的話通常不會在清單中，但在這裡保險起見）
     notes = notes.filter(n => n.id !== id);
     saveAllData();
     updateUI();
@@ -628,7 +625,7 @@ function deleteNote(id) {
 
 function completeNote(id) {
     notes = notes.filter(n => n.id !== id);
-    addPet('cat');
+    addPet('cat'); // 筆記獎勵一定是貓
     saveAllData();
     updateUI();
     alert('獎勵一隻貓咪！');
