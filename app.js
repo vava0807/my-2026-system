@@ -288,18 +288,6 @@ function saveDiary() {
         return;
     }
     
-    const today = new Date().toDateString();
-    
-    const todayDiary = diaries.find(diary => {
-        const diaryDate = new Date(diary.createdAt).toDateString();
-        return diaryDate === today;
-    });
-    
-    if (todayDiary) {
-        alert('今天已經寫過日記囉！明天再來吧 😊');
-        return;
-    }
-    
     const petType = PET_TYPES[Math.floor(Math.random() * PET_TYPES.length)];
     
     const newDiary = {
@@ -307,7 +295,7 @@ function saveDiary() {
         content: content,
         createdAt: new Date().toISOString(),
         petReward: petType,
-        dateStr: today
+        dateStr: new Date().toDateString()
     };
     
     diaries.unshift(newDiary);
