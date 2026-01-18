@@ -447,6 +447,53 @@ function loadData() {
     if (savedNotes) notes = JSON.parse(savedNotes);
     if (savedDiaries) diaries = JSON.parse(savedDiaries);
     if (savedStats) stats = JSON.parse(savedStats);
+
+    // 關鍵修正：確保 stats 的數量與實際陣列一致，避免顯示錯誤
+    stats.dogs = pets.filter(p => p.type === 'dog').length;
+    stats.cats = pets.filter(p => p.type === 'cat').length;
+    stats.totalDiaries = diaries.length;
+}
+
+// 匯出資料
+function exportData() {
+    const data = { pets, notes, diaries, stats };
+    const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `pet_farm_backup_${new Date().getTime()}.json`;
+    a.click();
+    URL.revokeObjectURL(url);
+}
+
+// 匯入資料
+function importData() {
+    const input = document.createElement('input');
+    input.type = 'file';
+    input.accept = '.json';
+    input.onchange = e => {
+        const file = e.target.files[0];
+        const reader = new FileReader();
+        reader.onload = event => {
+            try {
+                const data = JSON.parse(event.target.result);
+                if (data.pets && data.diaries) {
+                    localStorage.setItem('pets', JSON.stringify(data.pets));
+                    localStorage.setItem('notes', JSON.stringify(data.notes || []));
+                    localStorage.setItem('diaries', JSON.stringify(data.diaries));
+                    localStorage.setItem('stats', JSON.stringify(data.stats || stats));
+                    alert('匯入成功！網頁即將重新整理...');
+                    location.reload();
+                } else {
+                    alert('檔案格式不正確');
+                }
+            } catch (err) {
+                alert('匯入失敗：' + err.message);
+            }
+        };
+        reader.readAsText(file);
+    };
+    input.click();
 }
 
 function saveAllData() {
@@ -581,13 +628,25 @@ function updateUI() {
 function initApp() {
     loadData();
     initThreeJS();
-    // 兼容舊資料，如果沒有 breed 則使用 type
-    pets.forEach(p => add3DPet(p.breed || p.type || 'shiba'));
+    // 兼容舊資料與極致容錯：確保每個寵物都能載入
+    pets.forEach(p => {
+        const breed = p.breed || p.type || 'shiba';
+        // 檢查 breed 是否存在於模型的定義中 (簡單檢查 breed 是否有效)
+        const validBreeds = ['shiba', 'corgi', 'munchkin'];
+        const finalBreed = validBreeds.includes(breed) ? breed : 'shiba';
+        add3DPet(finalBreed);
+    });
     updateUI();
 
     saveDiaryBtn.addEventListener('click', saveDiary);
     addNoteBtn.addEventListener('click', addNote);
     noteInput.addEventListener('keypress', e => e.key === 'Enter' && addNote());
+
+    // 綁定同步按鈕 (假設我們在 index.html 加上了 ID)
+    const exportBtn = document.getElementById('exportBtn');
+    const importBtn = document.getElementById('importBtn');
+    if (exportBtn) exportBtn.addEventListener('click', exportData);
+    if (importBtn) importBtn.addEventListener('click', importData);
 }
 
 window.deleteNote = deleteNote;
