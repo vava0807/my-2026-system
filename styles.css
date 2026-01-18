@@ -21,8 +21,11 @@ body {
 .main-layout {
     display: grid;
     grid-template-columns: 1fr 1fr;
-    gap: 20px;
-    align-items: start;
+    gap: 30px;
+    padding: 20px;
+    position: relative;
+    z-index: 1;
+    /* 確保內容在背景之上 */
 }
 
 /* 左欄 */
@@ -59,15 +62,27 @@ body {
 
 /* 寵物農場區 - 中間最大 */
 .pet-farm {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100vw;
+    height: 100vh;
+    z-index: -1;
+    /* 放在最底層 */
     background: linear-gradient(135deg, #a8edea 0%, #fed6e3 100%);
-    padding: 30px;
-    border-radius: 20px;
-    box-shadow: 0 8px 20px rgba(0, 0, 0, 0.1);
-    border: 4px dashed #ff6b6b;
-    grid-column: 1 / span 2;
-    min-height: 500px;
-    display: flex;
-    flex-direction: column;
+    overflow: hidden;
+}
+
+.pet-farm h2,
+.pet-stats {
+    position: absolute;
+    width: 100%;
+    z-index: 2;
+    top: 20px;
+}
+
+.pet-stats {
+    top: 80px;
 }
 
 .pet-farm h2 {
@@ -99,18 +114,11 @@ body {
 }
 
 .pet-container {
-    background: linear-gradient(180deg, #87CEEB 0%, #90EE90 100%);
-    min-height: 400px;
-    flex: 1;
-    padding: 0;
-    border-radius: 15px;
-    display: flex;
-    flex-wrap: wrap;
-    gap: 15px;
-    justify-content: center;
-    align-items: center;
-    position: relative;
-    overflow: hidden;
+    width: 100%;
+    height: 100%;
+    position: absolute;
+    top: 0;
+    left: 0;
 }
 
 #threeCanvas {
@@ -155,10 +163,12 @@ body {
 
 /* 日記區 */
 .diary-section {
-    background: white;
+    background: rgba(255, 255, 255, 0.8);
+    backdrop-filter: blur(10px);
     padding: 30px;
     border-radius: 20px;
-    box-shadow: 0 8px 20px rgba(0, 0, 0, 0.1);
+    box-shadow: 0 8px 32px rgba(0, 0, 0, 0.1);
+    border: 1px solid rgba(255, 255, 255, 0.3);
 }
 
 .diary-section h2 {
@@ -295,12 +305,15 @@ body {
 
 /* 日記歷史區 */
 .history-section {
-    background: white;
+    background: rgba(255, 255, 255, 0.8);
+    backdrop-filter: blur(10px);
     padding: 30px;
     border-radius: 20px;
-    box-shadow: 0 8px 20px rgba(0, 0, 0, 0.1);
+    box-shadow: 0 8px 32px rgba(0, 0, 0, 0.1);
+    border: 1px solid rgba(255, 255, 255, 0.3);
     grid-column: 2;
-    min-height: 400px;
+    max-height: 80vh;
+    overflow-y: auto;
 }
 
 .history-section h2 {
