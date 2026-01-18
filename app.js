@@ -170,43 +170,121 @@ function createPetModel(type) {
     const group = new THREE.Group();
     const legs = [];
 
-    const bodyMat = new THREE.MeshPhongMaterial({ color: type === 'dog' ? 0xD2691E : 0xFF8C42 });
+    if (type === 'dog') {
+        // --- 柯基犬 (Corgi) 設計 ---
+        const bodyMat = new THREE.MeshPhongMaterial({ color: 0xD2691E }); // 柯基橘
+        const whiteMat = new THREE.MeshPhongMaterial({ color: 0xFFFFFF }); // 柯基白
 
-    // 身體
-    const bodyGeom = new THREE.BoxGeometry(12, 8, 8);
-    const body = new THREE.Mesh(bodyGeom, bodyMat);
-    body.position.z = 6;
-    group.add(body);
+        // 長身體 (柯基特色)
+        const bodyGeom = new THREE.BoxGeometry(16, 9, 9);
+        const body = new THREE.Mesh(bodyGeom, bodyMat);
+        body.position.z = 5;
+        group.add(body);
 
-    // 頭部
-    const headGeom = new THREE.BoxGeometry(7, 7, 7);
-    const head = new THREE.Mesh(headGeom, bodyMat);
-    head.position.set(8, 0, 10);
-    group.add(head);
+        // 白色肚皮
+        const bellyGeom = new THREE.BoxGeometry(16.2, 5, 5);
+        const belly = new THREE.Mesh(bellyGeom, whiteMat);
+        belly.position.set(0, 0, 3.5);
+        group.add(belly);
 
-    // 眼睛
+        // 頭部
+        const headGeom = new THREE.BoxGeometry(8, 8, 8);
+        const head = new THREE.Mesh(headGeom, bodyMat);
+        head.position.set(10, 0, 9);
+        group.add(head);
+
+        // 白色面袋 (臉部中心白色區域)
+        const snoutGeom = new THREE.BoxGeometry(4, 5, 4);
+        const snout = new THREE.Mesh(snoutGeom, whiteMat);
+        snout.position.set(13, 0, 8);
+        group.add(snout);
+
+        // 黑色小鼻子
+        const noseGeom = new THREE.BoxGeometry(1.5, 2, 1.5);
+        const noseMat = new THREE.MeshBasicMaterial({ color: 0x000000 });
+        const nose = new THREE.Mesh(noseGeom, noseMat);
+        nose.position.set(15.5, 0, 8.5);
+        group.add(nose);
+
+        // 大尖耳朵 (柯基特色)
+        const earGeom = new THREE.BoxGeometry(2, 5, 7);
+        const ear1 = new THREE.Mesh(earGeom, bodyMat);
+        ear1.position.set(10, 3, 13);
+        group.add(ear1);
+        const ear2 = new THREE.Mesh(earGeom, bodyMat);
+        ear2.position.set(10, -3, 13);
+        group.add(ear2);
+
+        // 四條短腿 (柯基特色)
+        const legGeom = new THREE.BoxGeometry(3, 3, 4);
+        const legPositions = [
+            { x: 5, y: 3.5 }, { x: 5, y: -3.5 },
+            { x: -5, y: 3.5 }, { x: -5, y: -3.5 }
+        ];
+
+        legPositions.forEach(pos => {
+            const leg = new THREE.Mesh(legGeom, whiteMat); // 白短腿
+            leg.position.set(pos.x, pos.y, 2);
+            group.add(leg);
+            legs.push(leg);
+        });
+
+    } else {
+        // --- 貓咪 (Cat) 設計 ---
+        const catMat = new THREE.MeshPhongMaterial({ color: 0xFFA500 }); // 橘貓
+
+        // 身體
+        const bodyGeom = new THREE.BoxGeometry(10, 7, 7);
+        const body = new THREE.Mesh(bodyGeom, catMat);
+        body.position.z = 6;
+        group.add(body);
+
+        // 頭部
+        const headGeom = new THREE.BoxGeometry(7, 7, 7);
+        const head = new THREE.Mesh(headGeom, catMat);
+        head.position.set(7, 0, 10);
+        group.add(head);
+
+        // 貓耳朵 (尖尖的)
+        const earGeom = new THREE.BoxGeometry(2, 3, 4);
+        const ear1 = new THREE.Mesh(earGeom, catMat);
+        ear1.position.set(7, 2, 14);
+        group.add(ear1);
+        const ear2 = new THREE.Mesh(earGeom, catMat);
+        ear2.position.set(7, -2, 14);
+        group.add(ear2);
+
+        // 貓尾巴
+        const tailGeom = new THREE.BoxGeometry(2, 2, 8);
+        const tail = new THREE.Mesh(tailGeom, catMat);
+        tail.position.set(-8, 0, 8);
+        tail.rotation.y = 0.5;
+        group.add(tail);
+
+        // 腿部
+        const legGeom = new THREE.BoxGeometry(2, 2, 6);
+        const legPositions = [
+            { x: 3, y: 2.5 }, { x: 3, y: -2.5 },
+            { x: -3, y: 2.5 }, { x: -3, y: -2.5 }
+        ];
+
+        legPositions.forEach(pos => {
+            const leg = new THREE.Mesh(legGeom, catMat);
+            leg.position.set(pos.x, pos.y, 3);
+            group.add(leg);
+            legs.push(leg);
+        });
+    }
+
+    // 共同部分：眼睛
     const eyeGeom = new THREE.SphereGeometry(0.8, 8, 8);
     const eyeMat = new THREE.MeshBasicMaterial({ color: 0x000000 });
     const eye1 = new THREE.Mesh(eyeGeom, eyeMat);
-    eye1.position.set(11, 2, 11);
+    eye1.position.set(type === 'dog' ? 14 : 10, 2, type === 'dog' ? 10 : 11);
     group.add(eye1);
     const eye2 = new THREE.Mesh(eyeGeom, eyeMat);
-    eye2.position.set(11, -2, 11);
+    eye2.position.set(type === 'dog' ? 14 : 10, -2, type === 'dog' ? 10 : 11);
     group.add(eye2);
-
-    // 腿部
-    const legGeom = new THREE.BoxGeometry(2, 2, 6);
-    const legPositions = [
-        { x: 4, y: 3 }, { x: 4, y: -3 },
-        { x: -4, y: 3 }, { x: -4, y: -3 }
-    ];
-
-    legPositions.forEach(pos => {
-        const leg = new THREE.Mesh(legGeom, bodyMat);
-        leg.position.set(pos.x, pos.y, 2);
-        group.add(leg);
-        legs.push(leg);
-    });
 
     return { group, legs };
 }
