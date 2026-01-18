@@ -11,6 +11,8 @@ let clouds = [];
 let girl; // 走路的小女生
 let farmEnclosures = []; // 存儲閉合圍籬的範圍
 let smokeParticles = []; // 帳篷冒煙粒子
+let butterflies = []; // 儲存蝴蝶物件
+let rainbow; // 彩虹物件
 
 // DOM 元素
 const diaryContent = document.getElementById('diaryContent');
@@ -135,9 +137,17 @@ function initThreeJS() {
             const fz = centerZ + (Math.random() - 0.5) * 80;
             if (!isInEnclosure(fx, fz, 5)) {
                 createFlowerPatch(fx, fz);
+
+                // 在部分花叢周圍產生小蝴蝶
+                if (Math.random() < 0.3) {
+                    createButterfly(fx, 15, fz);
+                }
             }
         }
     }
+
+    // 彩虹
+    createRainbow();
 
     // 建立小女生
     const girlModel = createGirlModel();
@@ -321,23 +331,36 @@ function initThreeJS() {
             if (cloud.position.x > 800) cloud.position.x = -800;
         });
 
-        // 帳篷冒煙動畫 (適配縮小後的帳篷)
+        // 帳篷冒煙動畫 (加強濃厚版 - 適配大帳篷)
         smokeParticles.forEach(p => {
-            p.position.y += 0.3 + Math.random() * 0.2; // 上升速度稍慢
+            p.position.y += 0.4 + Math.random() * 0.3; // 上升速度
             const driftSpeed = p.userData.driftSpeed || 0.2;
             p.position.x += Math.sin(time + p.userData.offset) * driftSpeed;
-            p.position.z += Math.cos(time + p.userData.offset) * 0.1;
-            p.scale.multiplyScalar(0.985);
-            p.material.opacity *= 0.985;
+            p.position.z += Math.cos(time + p.userData.offset) * 0.2;
+            p.scale.multiplyScalar(0.99); // 逐漸變小
+            p.material.opacity *= 0.99; // 逐漸透明
 
             if (p.material.opacity < 0.05) {
-                // 回到縮小後的帳篷頂部 (高度約 90)
+                // 回到縮小後的帳篷頂部 (高度約 80-90)
                 p.position.x = -80 + (Math.random() - 0.5) * 12;
                 p.position.z = -50 + (Math.random() - 0.5) * 12;
                 p.position.y = 80 + Math.random() * 10;
                 p.scale.set(1.5 + Math.random(), 1.5 + Math.random(), 1.5 + Math.random());
                 p.material.opacity = 0.5 + Math.random() * 0.3;
             }
+        });
+
+        // 蝴蝶動畫
+        butterflies.forEach(b => {
+            // 拍打翅膀
+            b.wingL.rotation.y = Math.sin(time * 20) * 0.8 + 0.5;
+            b.wingR.rotation.y = -Math.sin(time * 20) * 0.8 - 0.5;
+
+            // 隨機飛舞路徑
+            b.group.position.y += Math.sin(time * 2 + b.offset) * 0.1;
+            b.group.position.x += Math.cos(time * 0.5 + b.offset) * 0.2;
+            b.group.position.z += Math.sin(time * 0.5 + b.offset) * 0.2;
+            b.group.rotation.y += 0.01;
         });
 
         renderer.render(scene, camera);
@@ -832,6 +855,72 @@ function createFlowerPatch(x, z) {
 
     group.position.set(x, 0, z);
     scene.add(group);
+}
+
+// 建立天空彩虹
+function createRainbow() {
+    const group = new THREE.Group();
+    const colors = [0xff0000, 0xff7f00, 0xffff00, 0x00ff00, 0x0000ff, 0x4b0082, 0x9400d3];
+    const radius = 800;
+    const tubeRadius = 10;
+
+    colors.forEach((color, i) => {
+        const geom = new THREE.TorusGeometry(radius - i * tubeRadius, tubeRadius, 16, 100, Math.PI);
+        const mat = new THREE.MeshBasicMaterial({
+            color: color,
+            transparent: true,
+            opacity: 0.4,
+            side: THREE.DoubleSide
+        });
+        const arch = new THREE.Mesh(geom, mat);
+        group.add(arch);
+    });
+
+    group.position.set(200, -100, -800);
+    group.rotation.y = -Math.PI / 6;
+    scene.add(group);
+    rainbow = group;
+}
+
+// 建立飛舞的小蝴蝶
+function createButterfly(x, y, z) {
+    const group = new THREE.Group();
+
+    // 隨機顏色
+    const colors = [0xFFC0CB, 0xFF69B4, 0x00FFFF, 0xFFFF00, 0x9370DB];
+    const color = colors[Math.floor(Math.random() * colors.length)];
+    const wingMat = new THREE.MeshPhongMaterial({ color: color, side: THREE.DoubleSide });
+    const bodyMat = new THREE.MeshBasicMaterial({ color: 0x333333 });
+
+    // 身體
+    const body = new THREE.Mesh(new THREE.CylinderGeometry(0.2, 0.2, 2), bodyMat);
+    body.rotation.x = Math.PI / 2;
+    group.add(body);
+
+    // 翅膀
+    const wingGeom = new THREE.PlaneGeometry(1.5, 2);
+
+    const wingL = new THREE.Mesh(wingGeom, wingMat);
+    wingL.position.x = 0.75;
+    const wingLGroup = new THREE.Group();
+    wingLGroup.add(wingL);
+    group.add(wingLGroup);
+
+    const wingR = new THREE.Mesh(wingGeom, wingMat);
+    wingR.position.x = -0.75;
+    const wingRGroup = new THREE.Group();
+    wingRGroup.add(wingR);
+    group.add(wingRGroup);
+
+    group.position.set(x, y, z);
+    scene.add(group);
+
+    butterflies.push({
+        group: group,
+        wingL: wingLGroup,
+        wingR: wingRGroup,
+        offset: Math.random() * Math.PI * 2
+    });
 }
 
 // 建立河流
