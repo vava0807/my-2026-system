@@ -1,5 +1,9 @@
 // 使用 LocalStorage 作為數據存儲
 
+// Three.js 3D 場景
+let scene, camera, renderer;
+let petObjects = [];
+
 // DOM 元素
 const diaryContent = document.getElementById('diaryContent');
 const saveDiaryBtn = document.getElementById('saveDiaryBtn');
@@ -15,7 +19,8 @@ const warningText = document.getElementById('warningText');
 const daysSinceLastEntry = document.getElementById('daysSinceLastEntry');
 
 // 寵物類型
-const PET_TYPES = ['🐶', '🐱'];
+const PET_TYPES = ['dog', 'cat'];
+const PET_EMOJI = { dog: '🐶', cat: '🐱' };
 
 // 應用狀態
 let pets = [];
@@ -28,18 +33,161 @@ let stats = {
     lastEntryDate: null
 };
 
-// 初始化應用
-function initApp() {
-    loadData();
-    checkMissedDays();
-    updateUI();
-    
-    // 綁定事件
-    saveDiaryBtn.addEventListener('click', saveDiary);
-    addNoteBtn.addEventListener('click', addNote);
-    noteInput.addEventListener('keypress', (e) => {
-        if (e.key === 'Enter') addNote();
+// 初始化 Three.js 3D 場景
+function initThreeJS() {
+    const container = petContainer;
+    const width = container.clientWidth;
+    const height = container.clientHeight;
+
+    scene = new THREE.Scene();
+    scene.background = new THREE.Color(0x87CEEB);
+    scene.fog = new THREE.Fog(0x87CEEB, 1000, 10);
+
+    camera = new THREE.PerspectiveCamera(75, width / height, 0.1, 1000);
+    camera.position.z = 80;
+
+    renderer = new THREE.WebGLRenderer({ antialias: true, alpha: false });
+    renderer.setSize(width, height);
+    renderer.setPixelRatio(window.devicePixelRatio);
+    container.innerHTML = '';
+    container.appendChild(renderer.domElement);
+
+    // 地面
+    const groundGeometry = new THREE.PlaneGeometry(200, 100);
+    const groundMaterial = new THREE.MeshLambertMaterial({ color: 0x90EE90 });
+    const ground = new THREE.Mesh(groundGeometry, groundMaterial);
+    ground.position.z = -50;
+    scene.add(ground);
+
+    // 光源
+    const ambientLight = new THREE.AmbientLight(0xffffff, 0.8);
+    scene.add(ambientLight);
+
+    const directionalLight = new THREE.DirectionalLight(0xffffff, 0.6);
+    directionalLight.position.set(100, 100, 50);
+    scene.add(directionalLight);
+
+    function animate() {
+        requestAnimationFrame(animate);
+
+        petObjects.forEach(petObj => {
+            if (petObj.walking) {
+                petObj.mesh.position.x += petObj.velocityX;
+                petObj.mesh.position.y += petObj.velocityY;
+
+                if (Math.abs(petObj.mesh.position.x) > 90) petObj.velocityX *= -1;
+                if (Math.abs(petObj.mesh.position.y) > 40) petObj.velocityY *= -1;
+
+                if (Math.random() < 0.01) {
+                    petObj.velocityX = (Math.random() - 0.5) * 0.5;
+                    petObj.velocityY = (Math.random() - 0.5) * 0.5;
+                }
+
+                petObj.mesh.rotation.x += 0.01;
+                petObj.mesh.rotation.y += 0.02;
+            }
+        });
+
+        renderer.render(scene, camera);
+    }
+
+    animate();
+
+    window.addEventListener('resize', () => {
+        const newWidth = container.clientWidth;
+        const newHeight = container.clientHeight;
+        camera.aspect = newWidth / newHeight;
+        camera.updateProjectionMatrix();
+        renderer.setSize(newWidth, newHeight);
     });
+}
+
+// 建立 3D 寵物模型
+function createPetModel(type) {
+    let group = new THREE.Group();
+
+    if (type === 'dog') {
+        const bodyGeometry = new THREE.BoxGeometry(20, 15, 20);
+        const bodyMaterial = new THREE.MeshPhongMaterial({ color: 0xD2691E });
+        const body = new THREE.Mesh(bodyGeometry, bodyMaterial);
+        group.add(body);
+
+        const headGeometry = new THREE.BoxGeometry(12, 12, 12);
+        const head = new THREE.Mesh(headGeometry, bodyMaterial);
+        head.position.set(12, 5, 0);
+        group.add(head);
+
+        const earGeometry = new THREE.BoxGeometry(5, 10, 5);
+        const ear1 = new THREE.Mesh(earGeometry, bodyMaterial);
+        ear1.position.set(8, 15, -5);
+        group.add(ear1);
+        const ear2 = new THREE.Mesh(earGeometry, bodyMaterial);
+        ear2.position.set(8, 15, 5);
+        group.add(ear2);
+
+        const legGeometry = new THREE.BoxGeometry(5, 12, 5);
+        for (let i = -1; i <= 1; i += 2) {
+            for (let j = -1; j <= 1; j += 2) {
+                const leg = new THREE.Mesh(legGeometry, bodyMaterial);
+                leg.position.set(i * 6, -10, j * 8);
+                group.add(leg);
+            }
+        }
+    } else {
+        const bodyGeometry = new THREE.BoxGeometry(16, 12, 18);
+        const bodyMaterial = new THREE.MeshPhongMaterial({ color: 0xFF8C42 });
+        const body = new THREE.Mesh(bodyGeometry, bodyMaterial);
+        group.add(body);
+
+        const headGeometry = new THREE.BoxGeometry(10, 10, 10);
+        const head = new THREE.Mesh(headGeometry, bodyMaterial);
+        head.position.set(10, 4, 0);
+        group.add(head);
+
+        const earGeometry = new THREE.ConeGeometry(4, 8, 4);
+        const ear1 = new THREE.Mesh(earGeometry, bodyMaterial);
+        ear1.position.set(6, 12, -4);
+        group.add(ear1);
+        const ear2 = new THREE.Mesh(earGeometry, bodyMaterial);
+        ear2.position.set(6, 12, 4);
+        group.add(ear2);
+
+        const tailGeometry = new THREE.BoxGeometry(3, 3, 15);
+        const tail = new THREE.Mesh(tailGeometry, bodyMaterial);
+        tail.position.set(-10, 0, 10);
+        tail.rotation.z = 0.3;
+        group.add(tail);
+
+        const legGeometry = new THREE.BoxGeometry(4, 10, 4);
+        for (let i = -1; i <= 1; i += 2) {
+            for (let j = -1; j <= 1; j += 2) {
+                const leg = new THREE.Mesh(legGeometry, bodyMaterial);
+                leg.position.set(i * 5, -9, j * 7);
+                group.add(leg);
+            }
+        }
+    }
+
+    return group;
+}
+
+function add3DPet(petType) {
+    const mesh = createPetModel(petType);
+    mesh.position.x = (Math.random() - 0.5) * 150;
+    mesh.position.y = (Math.random() - 0.5) * 60;
+    mesh.position.z = 0;
+
+    scene.add(mesh);
+
+    const petObj = {
+        mesh: mesh,
+        type: petType,
+        walking: true,
+        velocityX: (Math.random() - 0.5) * 0.5,
+        velocityY: (Math.random() - 0.5) * 0.5
+    };
+
+    petObjects.push(petObj);
 }
 
 // 從 LocalStorage 載入數據
@@ -55,7 +203,6 @@ function loadData() {
     if (savedStats) stats = JSON.parse(savedStats);
 }
 
-// 保存所有數據到 LocalStorage
 function saveAllData() {
     localStorage.setItem('pets', JSON.stringify(pets));
     localStorage.setItem('notes', JSON.stringify(notes));
@@ -63,8 +210,6 @@ function saveAllData() {
     localStorage.setItem('stats', JSON.stringify(stats));
 }
 
-
-// 新增寵物
 function addPet() {
     const petType = PET_TYPES[Math.floor(Math.random() * PET_TYPES.length)];
     const newPet = {
@@ -75,27 +220,24 @@ function addPet() {
     
     pets.push(newPet);
     
-    // 更新統計
-    if (petType === '🐶') {
+    if (petType === 'dog') {
         stats.dogs++;
     } else {
         stats.cats++;
     }
     
     saveAllData();
+    if (scene) add3DPet(petType);
     updateUI();
 }
 
-// 移除寵物（懲罰機制）
 function removePet() {
     if (pets.length === 0) return;
     
-    // 隨機移除一隻寵物
     const randomIndex = Math.floor(Math.random() * pets.length);
     const petToRemove = pets[randomIndex];
     
-    // 更新統計
-    if (petToRemove.type === '🐶') {
+    if (petToRemove.type === 'dog') {
         stats.dogs = Math.max(0, stats.dogs - 1);
     } else {
         stats.cats = Math.max(0, stats.cats - 1);
@@ -103,12 +245,16 @@ function removePet() {
     
     pets.splice(randomIndex, 1);
     saveAllData();
-    updateUI();
     
-    alert(`😢 因為太久沒寫日記，${petToRemove.type} 離開了農場...`);
+    if (scene && petObjects.length > randomIndex) {
+        scene.remove(petObjects[randomIndex].mesh);
+        petObjects.splice(randomIndex, 1);
+    }
+    
+    updateUI();
+    alert(`😢 因為太久沒寫日記，${petToRemove.type === 'dog' ? '🐶' : '🐱'} 離開了農場...`);
 }
 
-// 新增筆記
 function addNote() {
     const content = noteInput.value.trim();
     if (!content) {
@@ -129,14 +275,12 @@ function addNote() {
     updateUI();
 }
 
-// 刪除筆記
 function deleteNote(noteId) {
     notes = notes.filter(note => note.id !== noteId);
     saveAllData();
     updateUI();
 }
 
-// 儲存日記
 function saveDiary() {
     const content = diaryContent.value.trim();
     if (!content) {
@@ -144,7 +288,6 @@ function saveDiary() {
         return;
     }
     
-    // 檢查今天是否已經寫過日記
     const today = new Date().toDateString();
     
     const todayDiary = diaries.find(diary => {
@@ -169,21 +312,18 @@ function saveDiary() {
     
     diaries.unshift(newDiary);
     
-    // 更新統計
     stats.totalDiaries++;
     stats.lastEntryDate = new Date().toISOString();
     
-    // 新增寵物
     addPet();
     
     diaryContent.value = '';
     saveAllData();
     updateUI();
     
-    alert(`🎉 日記儲存成功！你獲得了一隻 ${petType}！`);
+    alert(`🎉 日記儲存成功！你獲得了一隻 ${PET_EMOJI[petType]}！`);
 }
 
-// 檢查是否連續3天沒寫日記
 function checkMissedDays() {
     if (!stats.lastEntryDate) return;
     
@@ -192,14 +332,12 @@ function checkMissedDays() {
     const daysDiff = Math.floor((now - lastEntry) / (1000 * 60 * 60 * 24));
     
     if (daysDiff >= 3 && pets.length > 0) {
-        // 每超過3天就移除一隻寵物
         const petsToRemove = Math.floor(daysDiff / 3);
         for (let i = 0; i < petsToRemove && pets.length > 0; i++) {
             removePet();
         }
     }
     
-    // 顯示警告
     if (daysDiff >= 1 && daysDiff < 3) {
         warningText.style.display = 'block';
         daysSinceLastEntry.textContent = daysDiff;
@@ -208,29 +346,11 @@ function checkMissedDays() {
     }
 }
 
-// 更新UI
 function updateUI() {
-    // 更新統計數字
     dogCount.textContent = stats.dogs;
     catCount.textContent = stats.cats;
     totalDiaries.textContent = stats.totalDiaries;
     
-    // 更新寵物容器
-    petContainer.innerHTML = '';
-    if (pets.length === 0) {
-        petContainer.innerHTML = '<div class="empty-state"><p>🌱</p><p>還沒有寵物，快寫日記來獲得吧！</p></div>';
-    } else {
-        pets.forEach((pet, index) => {
-            const petElement = document.createElement('div');
-            petElement.className = 'pet';
-            petElement.textContent = pet.type;
-            petElement.style.animationDelay = `${index * 0.1}s`;
-            petElement.title = `可愛的${pet.type === '🐶' ? '狗狗' : '貓咪'}`;
-            petContainer.appendChild(petElement);
-        });
-    }
-    
-    // 更新筆記列表
     notesList.innerHTML = '';
     if (notes.length === 0) {
         notesList.innerHTML = '<div class="empty-state"><p>還沒有筆記</p></div>';
@@ -246,7 +366,6 @@ function updateUI() {
         });
     }
     
-    // 更新日記歷史
     diaryHistory.innerHTML = '';
     if (diaries.length === 0) {
         diaryHistory.innerHTML = '<div class="empty-state"><p>📖</p><p>還沒有日記，開始寫第一篇吧！</p></div>';
@@ -266,7 +385,7 @@ function updateUI() {
             diaryEntry.innerHTML = `
                 <div class="diary-entry-date">
                     <span>📅 ${dateStr}</span>
-                    <span class="pet-reward">獲得: ${diary.petReward}</span>
+                    <span class="pet-reward">獲得: ${PET_EMOJI[diary.petReward]}</span>
                 </div>
                 <div class="diary-entry-content">${diary.content}</div>
             `;
@@ -275,8 +394,25 @@ function updateUI() {
     }
 }
 
-// 將 deleteNote 暴露到全域作用域
 window.deleteNote = deleteNote;
 
-// 初始化應用
-initApp();
+function initApp() {
+    loadData();
+    checkMissedDays();
+    
+    setTimeout(() => {
+        initThreeJS();
+        pets.forEach(pet => {
+            add3DPet(pet.type);
+        });
+        updateUI();
+    }, 100);
+    
+    saveDiaryBtn.addEventListener('click', saveDiary);
+    addNoteBtn.addEventListener('click', addNote);
+    noteInput.addEventListener('keypress', (e) => {
+        if (e.key === 'Enter') addNote();
+    });
+}
+
+document.addEventListener('DOMContentLoaded', initApp);
