@@ -77,9 +77,9 @@ body {
     width: 100vw;
     height: 100vh;
     z-index: 0;
-    /* 提高層級使其可點擊 */
+    /* 提高層級 */
     pointer-events: auto;
-    /* 核心修正：允許點擊 */
+    /* 允許點擊 */
     background: linear-gradient(135deg, #a8edea 0%, #fed6e3 100%);
     overflow: hidden;
 }
