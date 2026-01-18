@@ -14,6 +14,7 @@ const petContainer = document.getElementById('petContainer');
 const dogCount = document.getElementById('dogCount');
 const catCount = document.getElementById('catCount');
 const totalDiaries = document.getElementById('totalDiaries');
+const totalNotes = document.getElementById('totalNotes');
 const diaryHistory = document.getElementById('diaryHistory');
 const warningText = document.getElementById('warningText');
 const daysSinceLastEntry = document.getElementById('daysSinceLastEntry');
@@ -251,8 +252,8 @@ function saveAllData() {
     localStorage.setItem('stats', JSON.stringify(stats));
 }
 
-function addPet() {
-    const petType = PET_TYPES[Math.floor(Math.random() * PET_TYPES.length)];
+function addPet(forcedType = null) {
+    const petType = forcedType || PET_TYPES[Math.floor(Math.random() * PET_TYPES.length)];
     const newPet = {
         id: Date.now().toString(),
         type: petType,
@@ -363,6 +364,7 @@ function checkMissedDays() {
 function updateUI() {
     dogCount.textContent = stats.dogs;
     catCount.textContent = stats.cats;
+    totalNotes.textContent = notes.length;
     totalDiaries.textContent = stats.totalDiaries;
 
     notesList.innerHTML = '';
@@ -374,7 +376,10 @@ function updateUI() {
             noteItem.className = 'note-item';
             noteItem.innerHTML = `
                 <span>${note.content}</span>
-                <button onclick="deleteNote('${note.id}')">🗑️ 刪除</button>
+                <div class="note-btns">
+                    <button class="btn-complete" onclick="completeNote('${note.id}')">✅ 完成</button>
+                    <button class="btn-delete" onclick="deleteNote('${note.id}')">🗑️ 刪除</button>
+                </div>
             `;
             notesList.appendChild(noteItem);
         });
@@ -399,7 +404,10 @@ function updateUI() {
             diaryEntry.innerHTML = `
                 <div class="diary-entry-date">
                     <span>📅 ${dateStr}</span>
-                    <span class="pet-reward">獲得: ${PET_EMOJI[diary.petReward]}</span>
+                    <div class="diary-entry-actions">
+                        <span class="pet-reward">獲得: ${PET_EMOJI[diary.petReward]}</span>
+                        <button class="btn-delete-small" onclick="deleteDiary('${diary.id}')">🗑️</button>
+                    </div>
                 </div>
                 <div class="diary-entry-content">${diary.content}</div>
             `;
@@ -408,7 +416,25 @@ function updateUI() {
     }
 }
 
+function deleteDiary(diaryId) {
+    if (!confirm('確定要刪除這篇日記嗎？這不會移除您已獲得的寵物。')) return;
+    diaries = diaries.filter(d => d.id !== diaryId);
+    stats.totalDiaries = diaries.length;
+    saveAllData();
+    updateUI();
+}
+
+function completeNote(noteId) {
+    notes = notes.filter(note => note.id !== noteId);
+    addPet('cat');
+    saveAllData();
+    updateUI();
+    alert('🎊 太棒了！完成筆記獲得了一隻 🐱 貓咪！');
+}
+
 window.deleteNote = deleteNote;
+window.completeNote = completeNote;
+window.deleteDiary = deleteDiary;
 
 function initApp() {
     console.log('Initializing app...');

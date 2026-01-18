@@ -1,11 +1,13 @@
 <!DOCTYPE html>
 <html lang="zh-TW">
+
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>🐾 寵物農場日記 🐾</title>
     <link rel="stylesheet" href="styles.css">
 </head>
+
 <body>
     <div class="container">
         <!-- 標題區 -->
@@ -22,11 +24,7 @@
                 <section class="diary-section">
                     <h2>✍️ 日記</h2>
                     <div class="diary-form">
-                        <textarea 
-                            id="diaryContent" 
-                            placeholder="記錄你今天的故事吧！每次都能獲得一隻新寵物！🎉"
-                            rows="6"
-                        ></textarea>
+                        <textarea id="diaryContent" placeholder="記錄你今天的故事吧！每次都能獲得一隻新寵物！🎉" rows="6"></textarea>
                         <button id="saveDiaryBtn" class="btn btn-primary">
                             💾 儲存日記並獲得寵物
                         </button>
@@ -37,11 +35,7 @@
                 <section class="notes-section">
                     <h2>📌 臨時筆記</h2>
                     <div class="note-form">
-                        <input 
-                            type="text" 
-                            id="noteInput" 
-                            placeholder="快速記錄臨時事項..."
-                        />
+                        <input type="text" id="noteInput" placeholder="快速記錄臨時事項..." />
                         <button id="addNoteBtn" class="btn btn-secondary">➕ 新增</button>
                     </div>
                     <ul id="notesList" class="notes-list">
@@ -56,7 +50,8 @@
                 <div class="pet-stats">
                     <span class="stat-item">🐶 狗狗: <strong id="dogCount">0</strong></span>
                     <span class="stat-item">🐱 貓咪: <strong id="catCount">0</strong></span>
-                    <span class="stat-item">📝 總日記: <strong id="totalDiaries">0</strong></span>
+                    <span class="stat-item">� 筆記: <strong id="totalNotes">0</strong></span>
+                    <span class="stat-item">�📝 總日記: <strong id="totalDiaries">0</strong></span>
                 </div>
                 <div id="petContainer" class="pet-container">
                     <!-- 3D 農場會在這裡 -->
@@ -77,4 +72,5 @@
     <!-- 載入應用程式 -->
     <script src="app.js"></script>
 </body>
+
 </html>
