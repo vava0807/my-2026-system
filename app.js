@@ -372,6 +372,55 @@ function initThreeJS() {
             b.group.rotation.y += 0.01;
         });
 
+        // 海豚跳躍動畫
+        dolphins.forEach(d => {
+            d.jumpTimer += 0.02;
+            const jumpProgress = (d.jumpTimer + d.offset) % (Math.PI * 2);
+
+            // 海豚只有在跳躍週期的一部分時才會露出海面
+            if (jumpProgress < Math.PI) {
+                const jumpHeight = Math.sin(jumpProgress) * 60;
+                d.group.position.y = -20 + jumpHeight;
+                // 旋轉模擬跳躍姿勢
+                d.group.rotation.x = -Math.cos(jumpProgress) * 1.2;
+            } else {
+                d.group.position.y = -80; // 沉入海中
+            }
+        });
+
+        // 鯨魚動畫與噴水
+        if (whale) {
+            // 抹香鯨緩慢游動
+            whale.group.position.z += Math.sin(time * 0.2) * 0.2;
+            whale.group.position.y = -60 + Math.sin(time * 0.5) * 5;
+
+            // 定時噴水
+            if (Math.sin(time * 1.5) > 0.8) {
+                for (let i = 0; i < 3; i++) {
+                    const sp = spoutParticles[Math.floor(Math.random() * spoutParticles.length)];
+                    if (sp.material.opacity < 0.1) {
+                        sp.position.set(whale.group.position.x, whale.group.position.y + 45, whale.group.position.z);
+                        sp.material.opacity = 0.8;
+                        sp.userData.vy = 2 + Math.random() * 2;
+                        sp.userData.vx = (Math.random() - 0.5) * 0.5;
+                        sp.userData.vz = (Math.random() - 0.5) * 0.5;
+                    }
+                }
+            }
+        }
+
+        // 鯨魚噴水粒子更新
+        spoutParticles.forEach(p => {
+            if (p.material.opacity > 0) {
+                p.position.y += p.userData.vy;
+                p.position.x += p.userData.vx;
+                p.position.z += p.userData.vz;
+                p.userData.vy -= 0.1; // 重力
+                p.material.opacity -= 0.02;
+                p.scale.multiplyScalar(1.02);
+            }
+        });
+
         renderer.render(scene, camera);
     }
 
