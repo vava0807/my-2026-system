@@ -6,6 +6,8 @@ let raycaster = new THREE.Raycaster();
 let mouse = new THREE.Vector2();
 let grabbedPet = null;
 let dragPlane = new THREE.Plane(new THREE.Vector3(0, 1, 0), 0); // 地面平面 用於計算拖拽位置
+let sun;
+let clouds = [];
 
 // DOM 元素
 const diaryContent = document.getElementById('diaryContent');
@@ -92,6 +94,14 @@ function initThreeJS() {
         createTree();
     }
 
+    // 太陽
+    createSun();
+
+    // 雲朵
+    for (let i = 0; i < 8; i++) {
+        createCloud();
+    }
+
     // 動畫循環
     function animate() {
         requestAnimationFrame(animate);
@@ -145,6 +155,19 @@ function initThreeJS() {
                 const s = 1 + Math.sin(time * 3) * 0.03;
                 petObj.mesh.scale.set(s, s, s);
             }
+        });
+
+        // 太陽動畫 (微弱脈動)
+        if (sun) {
+            const sunScale = 1 + Math.sin(time * 2) * 0.05;
+            sun.scale.set(sunScale, sunScale, sunScale);
+        }
+
+        // 雲朵動畫 (飄動)
+        clouds.forEach(cloud => {
+            cloud.position.x += cloud.userData.speed;
+            // 邊界檢查：飄出畫面後從另一邊回來
+            if (cloud.position.x > 800) cloud.position.x = -800;
         });
 
         renderer.render(scene, camera);
@@ -430,6 +453,47 @@ function createTree() {
     let theta = Math.random() * Math.PI * 2;
     group.position.set(Math.cos(theta) * r, 0, Math.sin(theta) * r);
     scene.add(group);
+}
+
+// 建立太陽
+function createSun() {
+    const sunGeom = new THREE.SphereGeometry(40, 32, 32);
+    const sunMat = new THREE.MeshBasicMaterial({ color: 0xFFEF00 }); // 發亮黃色
+    sun = new THREE.Mesh(sunGeom, sunMat);
+    sun.position.set(-400, 500, -600); // 高高在上
+    scene.add(sun);
+
+    // 太陽光輝 (外圈)
+    const glowGeom = new THREE.SphereGeometry(60, 32, 32);
+    const glowMat = new THREE.MeshBasicMaterial({ color: 0xFFD700, transparent: true, opacity: 0.3 });
+    const glow = new THREE.Mesh(glowGeom, glowMat);
+    sun.add(glow);
+}
+
+// 建立雲朵
+function createCloud() {
+    const group = new THREE.Group();
+    const cloudMat = new THREE.MeshLambertMaterial({ color: 0xffffff, transparent: true, opacity: 0.9 });
+
+    // 雲是由多個球組成的
+    const numSpheres = 3 + Math.floor(Math.random() * 3);
+    for (let i = 0; i < numSpheres; i++) {
+        const s = new THREE.Mesh(new THREE.SphereGeometry(15 + Math.random() * 10, 16, 16), cloudMat);
+        s.position.set(i * 15 - 20, Math.random() * 10, Math.random() * 10);
+        group.add(s);
+    }
+
+    // 隨機位置
+    const x = Math.random() * 1600 - 800;
+    const y = 300 + Math.random() * 150;
+    const z = Math.random() * 1000 - 500;
+    group.position.set(x, y, z);
+
+    // 儲存速度
+    group.userData = { speed: 0.1 + Math.random() * 0.3 };
+
+    scene.add(group);
+    clouds.push(group);
 }
 
 // 數據管理
