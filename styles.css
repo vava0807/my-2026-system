@@ -17,6 +17,8 @@ body {
     max-width: 100%;
     margin: 0;
     padding: 0 40px;
+    pointer-events: none;
+    /* 穿透到背景 */
 }
 
 /* 主要布局：三欄設計 */
@@ -27,6 +29,8 @@ body {
     padding: 20px;
     position: relative;
     z-index: 1;
+    pointer-events: none;
+    /* 穿透到背景 */
 }
 
 /* 左欄 */
@@ -37,6 +41,8 @@ body {
     gap: 20px;
     position: relative;
     z-index: 10;
+    pointer-events: auto;
+    /* 恢復點擊 */
 }
 
 /* 標題區 */
@@ -47,6 +53,8 @@ body {
     border-radius: 20px;
     box-shadow: 0 8px 20px rgba(0, 0, 0, 0.1);
     margin-bottom: 30px;
+    pointer-events: auto;
+    /* 恢復點擊 */
 }
 
 .header h1 {
@@ -68,8 +76,10 @@ body {
     left: 0;
     width: 100vw;
     height: 100vh;
-    z-index: -1;
-    /* 放在最底層 */
+    z-index: 0;
+    /* 提高層級使其可點擊 */
+    pointer-events: auto;
+    /* 核心修正：允許點擊 */
     background: linear-gradient(135deg, #a8edea 0%, #fed6e3 100%);
     overflow: hidden;
 }
@@ -333,6 +343,8 @@ body {
     grid-column: 3;
     max-height: 75vh;
     overflow-y: auto;
+    pointer-events: auto;
+    /* 恢復點擊 */
 }
 
 .history-section h2 {
