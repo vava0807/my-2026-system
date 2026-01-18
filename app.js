@@ -1033,8 +1033,8 @@ function createDolphin(x, y, z) {
     const group = new THREE.Group();
     const dMat = new THREE.MeshPhongMaterial({ color: 0x87CEEB });
 
-    // 身體 (流線型)
-    const body = new THREE.Mesh(new THREE.CapsuleGeometry(5, 12, 4, 8), dMat);
+    // 身體 (使用 CylinderGeometry 替代 CapsuleGeometry 以相容 r128)
+    const body = new THREE.Mesh(new THREE.CylinderGeometry(5, 5, 12, 8), dMat);
     body.rotation.z = Math.PI / 2;
     group.add(body);
 
