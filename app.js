@@ -8,6 +8,9 @@ let grabbedPet = null;
 let dragPlane = new THREE.Plane(new THREE.Vector3(0, 1, 0), 0); // 地面平面 用於計算拖拽位置
 let sun;
 let clouds = [];
+let girl; // 走路的小女生
+let farmEnclosures = []; // 存儲閉合圍籬的範圍
+let smokeParticles = []; // 帳篷冒煙粒子
 
 // DOM 元素
 const diaryContent = document.getElementById('diaryContent');
@@ -91,8 +94,8 @@ function initThreeJS() {
     directionalLight.position.set(100, 200, 100);
     scene.add(directionalLight);
 
-    // 裝飾場景：小樹
-    for (let i = 0; i < 15; i++) {
+    // 裝飾場景：小樹 (大幅增加密度)
+    for (let i = 0; i < 80; i++) {
         createTree();
     }
 
@@ -100,24 +103,50 @@ function initThreeJS() {
     createSun();
 
     // 雲朵
-    for (let i = 0; i < 8; i++) {
+    for (let i = 0; i < 12; i++) {
         createCloud();
     }
 
     // 帳篷
     createTent();
 
-    // 圍欄
-    createFence(0, -100, 0);
-    createFence(35, -100, 0);
-    createFence(-120, 20, Math.PI / 2);
-    createFence(-120, -15, Math.PI / 2);
+    // 更多的裝飾圍欄 (散落在場景各處)
+    for (let i = 0; i < 5; i++) {
+        createFence(-220 + i * 35, -220, 0);
+        createFence(180, -250 + i * 35, Math.PI / 2);
+        createFence(-320, 100 + i * 35, Math.PI / 2);
+    }
 
-    // 花叢
-    createFlowerPatch(50, 50);
-    createFlowerPatch(-100, 80);
-    createFlowerPatch(80, -30);
-    createFlowerPatch(-50, -150);
+    // 唯一的閉合型小圍籬
+    createClosedEnclosure(100, 100, 60);
+
+    // 花叢 (極致聚集版：分組生成)
+    const numClusters = 6;
+    const flowersPerCluster = 10;
+    for (let c = 0; c < numClusters; c++) {
+        const centerX = (Math.random() - 0.5) * 500;
+        const centerZ = (Math.random() - 0.5) * 500;
+        for (let i = 0; i < flowersPerCluster; i++) {
+            const fx = centerX + (Math.random() - 0.5) * 80;
+            const fz = centerZ + (Math.random() - 0.5) * 80;
+            createFlowerPatch(fx, fz);
+        }
+    }
+
+    // 建立小女生
+    const girlModel = createGirlModel();
+    const girlHint = createHintSprite();
+    girlModel.group.add(girlHint);
+    girl = {
+        mesh: girlModel.group,
+        legs: girlModel.legs,
+        hint: girlHint,
+        walking: true,
+        angle: 0,
+        speed: 0.5
+    };
+    scene.add(girl.mesh);
+    girl.mesh.position.set(-50, 0, 50);
 
     // 小河流
     createRiver();
@@ -132,10 +161,32 @@ function initThreeJS() {
         petObjects.forEach(petObj => {
             if (petObj.walking) {
                 // 移動 (XZ 平面)
-                petObj.mesh.position.x += petObj.velocityX;
-                petObj.mesh.position.z += petObj.velocityZ;
+                let nextX = petObj.mesh.position.x + petObj.velocityX;
+                let nextZ = petObj.mesh.position.z + petObj.velocityZ;
 
-                // 邊界檢查
+                // 檢查是否撞到閉合圍籬的邊界
+                const currentInEnclosure = farmEnclosures.some(enc =>
+                    petObj.mesh.position.x >= enc.xMin && petObj.mesh.position.x <= enc.xMax &&
+                    petObj.mesh.position.z >= enc.zMin && petObj.mesh.position.z <= enc.zMax
+                );
+
+                const nextInEnclosure = farmEnclosures.some(enc =>
+                    nextX >= enc.xMin && nextX <= enc.xMax &&
+                    nextZ >= enc.zMin && nextZ <= enc.zMax
+                );
+
+                if (currentInEnclosure !== nextInEnclosure) {
+                    petObj.velocityX *= -1;
+                    petObj.velocityZ *= -1;
+                    updatePetRotation(petObj);
+                    nextX = petObj.mesh.position.x + petObj.velocityX;
+                    nextZ = petObj.mesh.position.z + petObj.velocityZ;
+                }
+
+                petObj.mesh.position.x = nextX;
+                petObj.mesh.position.z = nextZ;
+
+                // 邊界檢查 (草地邊界)
                 const dist = Math.sqrt(petObj.mesh.position.x ** 2 + petObj.mesh.position.z ** 2);
                 if (dist > 350) {
                     petObj.velocityX *= -1;
@@ -156,10 +207,12 @@ function initThreeJS() {
                 petObj.mesh.position.y = bounce;
 
                 // 腳跟著動
-                petObj.legs.forEach((leg, i) => {
-                    const offset = (i === 0 || i === 3) ? 1 : -1;
-                    leg.rotation.x = Math.sin(time * walkSpeed) * 0.6 * offset;
-                });
+                if (petObj.legs) {
+                    petObj.legs.forEach((leg, i) => {
+                        const offset = (i === 0 || i === 3) ? 1 : -1;
+                        leg.rotation.x = Math.sin(time * walkSpeed) * 0.6 * offset;
+                    });
+                }
 
                 // 尾巴搖擺
                 if (petObj.tail) {
@@ -177,6 +230,79 @@ function initThreeJS() {
             }
         });
 
+        // 小女生行走動畫
+        if (girl && girl.walking) {
+            let nextX = girl.mesh.position.x + Math.cos(girl.angle) * girl.speed;
+            let nextZ = girl.mesh.position.z + Math.sin(girl.angle) * girl.speed;
+
+            const currentInEnclosure = farmEnclosures.some(enc =>
+                girl.mesh.position.x >= enc.xMin && girl.mesh.position.x <= enc.xMax &&
+                girl.mesh.position.z >= enc.zMin && girl.mesh.position.z <= enc.zMax
+            );
+
+            const nextInEnclosure = farmEnclosures.some(enc =>
+                nextX >= enc.xMin && nextX <= enc.xMax &&
+                nextZ >= enc.zMin && nextZ <= enc.zMax
+            );
+
+            if (currentInEnclosure !== nextInEnclosure) {
+                girl.angle += Math.PI;
+                nextX = girl.mesh.position.x + Math.cos(girl.angle) * girl.speed;
+                nextZ = girl.mesh.position.z + Math.sin(girl.angle) * girl.speed;
+            }
+
+            girl.mesh.position.x = nextX;
+            girl.mesh.position.z = nextZ;
+            girl.mesh.rotation.y = -girl.angle + Math.PI / 2;
+
+            const walkSpeed = 8;
+            const bounce = Math.abs(Math.sin(time * walkSpeed)) * 5;
+            girl.mesh.position.y = bounce;
+
+            if (girl.legs) {
+                girl.legs.forEach((leg, i) => {
+                    const offset = (i === 0) ? 1 : -1;
+                    leg.rotation.x = Math.sin(time * walkSpeed) * 0.5 * offset;
+                });
+            }
+
+            if (Math.random() < 0.01) {
+                girl.angle += (Math.random() - 0.5) * 2;
+            }
+        }
+
+        // 寵物提示動畫 (當被懸停時)
+        petObjects.forEach(petObj => {
+            if (petObj.isHovered) {
+                petObj.mesh.scale.set(1.05, 1.05, 1.05); // 稍微放大但不抖動
+                if (petObj.hint) {
+                    petObj.hint.visible = true;
+                    petObj.hint.position.y = 25; // 固定高度
+                }
+            } else {
+                if (petObj.hint) petObj.hint.visible = false;
+                if (!petObj.walking && grabbedPet !== petObj) {
+                    petObj.mesh.scale.set(1, 1, 1);
+                }
+            }
+        });
+
+        // 小女生提示動畫
+        if (girl) {
+            if (girl.isHovered) {
+                girl.mesh.scale.set(1.05, 1.05, 1.05); // 稍微放大但不抖動
+                if (girl.hint) {
+                    girl.hint.visible = true;
+                    girl.hint.position.y = 30; // 固定高度
+                }
+            } else {
+                if (girl.hint) girl.hint.visible = false;
+                if (!girl.walking && grabbedPet !== girl) {
+                    girl.mesh.scale.set(1, 1, 1);
+                }
+            }
+        }
+
         // 太陽動畫 (微弱脈動)
         if (sun) {
             const sunScale = 1 + Math.sin(time * 2) * 0.05;
@@ -186,8 +312,26 @@ function initThreeJS() {
         // 雲朵動畫 (飄動)
         clouds.forEach(cloud => {
             cloud.position.x += cloud.userData.speed;
-            // 邊界檢查：飄出畫面後從另一邊回來
             if (cloud.position.x > 800) cloud.position.x = -800;
+        });
+
+        // 帳篷冒煙動畫 (適配縮小後的帳篷)
+        smokeParticles.forEach(p => {
+            p.position.y += 0.3 + Math.random() * 0.2; // 上升速度稍慢
+            const driftSpeed = p.userData.driftSpeed || 0.2;
+            p.position.x += Math.sin(time + p.userData.offset) * driftSpeed;
+            p.position.z += Math.cos(time + p.userData.offset) * 0.1;
+            p.scale.multiplyScalar(0.985);
+            p.material.opacity *= 0.985;
+
+            if (p.material.opacity < 0.05) {
+                // 回到縮小後的帳篷頂部 (高度約 90)
+                p.position.x = -80 + (Math.random() - 0.5) * 12;
+                p.position.z = -50 + (Math.random() - 0.5) * 12;
+                p.position.y = 80 + Math.random() * 10;
+                p.scale.set(1.5 + Math.random(), 1.5 + Math.random(), 1.5 + Math.random());
+                p.material.opacity = 0.5 + Math.random() * 0.3;
+            }
         });
 
         renderer.render(scene, camera);
@@ -195,26 +339,31 @@ function initThreeJS() {
 
     // 互動事件：滑鼠/觸控按下 (抓取)
     renderer.domElement.addEventListener('pointerdown', (e) => {
-        console.log('--- Pointer Down ---', e.clientX, e.clientY);
         const rect = renderer.domElement.getBoundingClientRect();
         mouse.x = ((e.clientX - rect.left) / rect.width) * 2 - 1;
         mouse.y = -((e.clientY - rect.top) / rect.height) * 2 + 1;
 
         raycaster.setFromCamera(mouse, camera);
 
-        const meshes = petObjects.map(p => p.mesh);
+        const meshes = [...petObjects.map(p => p.mesh)];
+        if (girl) meshes.push(girl.mesh);
+
         const intersects = raycaster.intersectObjects(meshes, true);
-        console.log('Intersects:', intersects.length);
 
         if (intersects.length > 0) {
             let object = intersects[0].object;
-            while (object.parent && !petObjects.find(p => p.mesh === object)) {
+            while (object.parent &&
+                !petObjects.find(p => p.mesh === object) &&
+                !(girl && girl.mesh === object)) {
                 object = object.parent;
             }
 
             grabbedPet = petObjects.find(p => p.mesh === object);
+            if (!grabbedPet && girl && girl.mesh === object) {
+                grabbedPet = girl;
+            }
+
             if (grabbedPet) {
-                console.log('Grabbed:', grabbedPet.breed);
                 grabbedPet.walking = false;
                 if (controls) controls.enabled = false;
                 document.body.style.cursor = 'grabbing';
@@ -223,26 +372,48 @@ function initThreeJS() {
     });
 
     window.addEventListener('pointermove', (e) => {
-        if (!grabbedPet) {
-            const rect = renderer.domElement.getBoundingClientRect();
-            const mx = ((e.clientX - rect.left) / rect.width) * 2 - 1;
-            const my = -((e.clientY - rect.top) / rect.height) * 2 + 1;
-            raycaster.setFromCamera({ x: mx, y: my }, camera);
-            const intersects = raycaster.intersectObjects(petObjects.map(p => p.mesh), true);
-            renderer.domElement.style.cursor = intersects.length > 0 ? 'pointer' : 'default';
-            return;
-        }
-
         const rect = renderer.domElement.getBoundingClientRect();
-        mouse.x = ((e.clientX - rect.left) / rect.width) * 2 - 1;
-        mouse.y = -((e.clientY - rect.top) / rect.height) * 2 + 1;
-        raycaster.setFromCamera(mouse, camera);
+        const mx = ((e.clientX - rect.left) / rect.width) * 2 - 1;
+        const my = -((e.clientY - rect.top) / rect.height) * 2 + 1;
 
-        let groundIntersects = new THREE.Vector3();
-        if (raycaster.ray.intersectPlane(dragPlane, groundIntersects)) {
-            grabbedPet.mesh.position.x = groundIntersects.x;
-            grabbedPet.mesh.position.z = groundIntersects.z;
-            grabbedPet.mesh.position.y = 20;
+        if (!grabbedPet) {
+            raycaster.setFromCamera({ x: mx, y: my }, camera);
+            const meshes = [...petObjects.map(p => p.mesh)];
+            if (girl) meshes.push(girl.mesh);
+            const intersects = raycaster.intersectObjects(meshes, true);
+
+            petObjects.forEach(p => p.isHovered = false);
+            if (girl) girl.isHovered = false;
+
+            if (intersects.length > 0) {
+                let object = intersects[0].object;
+                while (object.parent &&
+                    !petObjects.find(p => p.mesh === object) &&
+                    !(girl && girl.mesh === object)) {
+                    object = object.parent;
+                }
+
+                const hoveredPet = petObjects.find(p => p.mesh === object);
+                if (hoveredPet) {
+                    hoveredPet.isHovered = true;
+                } else if (girl && girl.mesh === object) {
+                    girl.isHovered = true;
+                }
+                renderer.domElement.style.cursor = 'grab';
+            } else {
+                renderer.domElement.style.cursor = 'default';
+            }
+        } else {
+            mouse.x = mx;
+            mouse.y = my;
+            raycaster.setFromCamera(mouse, camera);
+
+            let groundIntersects = new THREE.Vector3();
+            if (raycaster.ray.intersectPlane(dragPlane, groundIntersects)) {
+                grabbedPet.mesh.position.x = groundIntersects.x;
+                grabbedPet.mesh.position.z = groundIntersects.z;
+                grabbedPet.mesh.position.y = 20;
+            }
         }
     });
 
@@ -459,33 +630,74 @@ function updatePetRotation(petObj) {
     petObj.mesh.rotation.y = angle;
 }
 
-// 建立樹
+// 建立樹 (多樣化版：5 種不同類型)
 function createTree() {
     const group = new THREE.Group();
-    const trunk = new THREE.Mesh(new THREE.CylinderGeometry(2, 3, 15, 8), new THREE.MeshLambertMaterial({ color: 0x8B4513 }));
-    trunk.position.y = 7.5;
-    group.add(trunk);
-    const leaves = new THREE.Mesh(new THREE.SphereGeometry(12, 16, 16), new THREE.MeshLambertMaterial({ color: 0x2E8B57 }));
-    leaves.position.y = 25;
-    group.add(leaves);
+    const trunkMat = new THREE.MeshLambertMaterial({ color: 0x8B4513 });
+    const greenColors = [0x2d5a27, 0x3e8e41, 0x2E8B57, 0x8bc34a, 0x1b5e20];
+    const leavesMat = new THREE.MeshLambertMaterial({ color: greenColors[Math.floor(Math.random() * greenColors.length)] });
 
-    let r = 80 + Math.random() * 300;
+    // 樹幹
+    const trunk = new THREE.Mesh(new THREE.CylinderGeometry(2, 2.5, 12, 8), trunkMat);
+    trunk.position.y = 6;
+    group.add(trunk);
+
+    const type = Math.floor(Math.random() * 4);
+
+    switch (type) {
+        case 0: // 圓錐松樹
+            for (let i = 0; i < 3; i++) {
+                const leaves = new THREE.Mesh(new THREE.ConeGeometry(10 - i * 2, 12, 8), leavesMat);
+                leaves.position.y = 12 + i * 6;
+                group.add(leaves);
+            }
+            break;
+        case 1: // 大圓球
+            const sphereLeaves = new THREE.Mesh(new THREE.SphereGeometry(10, 16, 16), leavesMat);
+            sphereLeaves.position.y = 18;
+            group.add(sphereLeaves);
+            break;
+        case 2: // 雙層圓球 (取代原本的雲朵狀)
+            const botSphere = new THREE.Mesh(new THREE.SphereGeometry(9, 16, 16), leavesMat);
+            botSphere.position.y = 15;
+            group.add(botSphere);
+            const topSphere = new THREE.Mesh(new THREE.SphereGeometry(6, 16, 16), leavesMat);
+            topSphere.position.y = 22;
+            group.add(topSphere);
+            break;
+        case 3: // 方塊樹 (Low Poly 風)
+            for (let i = 0; i < 3; i++) {
+                const size = 11 - i * 3;
+                const box = new THREE.Mesh(new THREE.BoxGeometry(size, size, size), leavesMat);
+                box.position.y = 15 + i * 5;
+                box.rotation.y = Math.PI / 4 * i;
+                group.add(box);
+            }
+            break;
+    }
+
+    let r = 120 + Math.random() * 280;
     let theta = Math.random() * Math.PI * 2;
     group.position.set(Math.cos(theta) * r, 0, Math.sin(theta) * r);
+
+    // 增加隨機高度 (有高有矮)
+    const scale = 0.7 + Math.random() * 1.5; // 0.7x ~ 2.2x
+    group.scale.set(scale, scale, scale);
+
     scene.add(group);
 }
 
-// 建立太陽
+// 建立太陽 (放大 3 倍版)
 function createSun() {
-    const sunGeom = new THREE.SphereGeometry(40, 32, 32);
+    const sunGeom = new THREE.SphereGeometry(120, 32, 32); // 40 * 3
     const sunMat = new THREE.MeshBasicMaterial({ color: 0xFFEF00 }); // 發亮黃色
     sun = new THREE.Mesh(sunGeom, sunMat);
-    sun.position.set(-100, 150, -600); // 再次降低高度
+    sun.position.set(-100, 200, -800); // 稍微移遠並調高，配合大體積
     scene.add(sun);
 
-    // 太陽光輝 (外圈)
-    const glowGeom = new THREE.SphereGeometry(60, 32, 32);
-    const glowMat = new THREE.MeshBasicMaterial({ color: 0xFFD700, transparent: true, opacity: 0.3 });
+    // 太陽光輝 (外圈 放大 3 倍)
+    const glowGeom = new THREE.SphereGeometry(180, 32, 32); // 60 * 3
+    const glowMat = new THREE.MeshBasicMaterial({ color: 0xFFD700, transparent: true, opacity: 0.25 });
     const glow = new THREE.Mesh(glowGeom, glowMat);
     sun.add(glow);
 }
@@ -516,29 +728,40 @@ function createCloud() {
     clouds.push(group);
 }
 
-// 建立帳篷
+// 建立帳篷 (縮小後的版本)
 function createTent() {
     const group = new THREE.Group();
 
-    // 帳篷主體 (角錐)
-    const geom = new THREE.ConeGeometry(40, 60, 4);
+    // 帳篷主體 (比原始稍大一點，縮小至目前的 30%)
+    const geom = new THREE.ConeGeometry(60, 90, 4);
     const mat = new THREE.MeshLambertMaterial({ color: 0xffffff });
     const tent = new THREE.Mesh(geom, mat);
-    tent.position.y = 30;
+    tent.position.y = 45;
     tent.rotation.y = Math.PI / 4;
     group.add(tent);
 
-    // 條紋裝飾 (藍色)
+    // 條紋裝飾
     const stripeMat = new THREE.MeshLambertMaterial({ color: 0x3498db });
     for (let i = 0; i < 4; i++) {
-        const stripe = new THREE.Mesh(new THREE.BoxGeometry(5, 61, 41), stripeMat);
-        stripe.position.y = 30;
+        const stripe = new THREE.Mesh(new THREE.BoxGeometry(8, 91, 61), stripeMat);
+        stripe.position.y = 45;
         stripe.rotation.y = (Math.PI / 2) * i + Math.PI / 4;
         group.add(stripe);
     }
 
     group.position.set(-80, 0, -50);
     scene.add(group);
+
+    // 初始化冒煙粒子 (適配縮小後的帳篷)
+    const smokeMat = new THREE.MeshLambertMaterial({ color: 0x999999, transparent: true, opacity: 0.6 });
+    for (let i = 0; i < 40; i++) {
+        const p = new THREE.Mesh(new THREE.SphereGeometry(2 + Math.random() * 3, 8, 8), smokeMat.clone());
+        p.position.set(-80 + (Math.random() - 0.5) * 15, 80 + Math.random() * 40, -50 + (Math.random() - 0.5) * 15);
+        p.userData.offset = Math.random() * 10;
+        p.userData.driftSpeed = 0.1 + Math.random() * 0.3;
+        scene.add(p);
+        smokeParticles.push(p);
+    }
 }
 
 // 建立圍欄
@@ -620,6 +843,150 @@ function createRiver() {
     river.rotation.x = -Math.PI / 2;
     river.position.y = 0.2; // 略高於地面
     scene.add(river);
+}
+
+// 建立小女生模型
+function createGirlModel() {
+    const group = new THREE.Group();
+    const skinMat = new THREE.MeshPhongMaterial({ color: 0xffdbac });
+    const hairMat = new THREE.MeshPhongMaterial({ color: 0x3d2314 });
+    const dressMat = new THREE.MeshPhongMaterial({ color: 0xffadc7 }); // 更可愛的粉色
+    const socksMat = new THREE.MeshPhongMaterial({ color: 0xffffff });
+    const shoesMat = new THREE.MeshPhongMaterial({ color: 0x825a2c });
+
+    // 身體 (洋裝 - 稍微豐滿一點)
+    const dress = new THREE.Mesh(new THREE.CylinderGeometry(2, 6, 10, 16), dressMat);
+    dress.position.y = 10;
+    group.add(dress);
+
+    // 頭 (稍微圓一點)
+    const head = new THREE.Mesh(new THREE.SphereGeometry(4.5, 32, 16), skinMat);
+    head.position.y = 18;
+    group.add(head);
+
+    // 頭髮 (雙馬尾版 - 圓潤可愛)
+    // 頂部頭髮 (覆蓋頭部避免禿頭)
+    const hairTop = new THREE.Mesh(new THREE.SphereGeometry(4.8, 32, 16), hairMat);
+    hairTop.position.y = 18.5;
+    hairTop.scale.set(1.1, 1, 1.1);
+    group.add(hairTop);
+
+    // 瀏海
+    const bangs = new THREE.Mesh(new THREE.SphereGeometry(5.0, 32, 16), hairMat);
+    bangs.position.y = 19;
+    bangs.scale.set(1, 0.45, 1);
+    bangs.rotation.x = 0.8;
+    group.add(bangs);
+
+    // 雙馬尾
+    const ponyTailGeom = new THREE.SphereGeometry(2.5, 16, 16);
+    const tieMat = new THREE.MeshPhongMaterial({ color: 0xff6b6b }); // 紅色髮圈
+
+    // 左馬尾
+    const ponyL = new THREE.Group();
+    const tieL = new THREE.Mesh(new THREE.CylinderGeometry(1.2, 1.2, 1, 16), tieMat);
+    tieL.rotation.z = Math.PI / 4;
+    ponyL.add(tieL);
+    const hairL = new THREE.Mesh(ponyTailGeom, hairMat);
+    hairL.scale.set(1, 1.5, 1);
+    hairL.position.set(2, -1, 0);
+    ponyL.add(hairL);
+    ponyL.position.set(4, 20, 0);
+    group.add(ponyL);
+
+    // 右馬尾
+    const ponyR = new THREE.Group();
+    const tieR = new THREE.Mesh(new THREE.CylinderGeometry(1.2, 1.2, 1, 16), tieMat);
+    tieR.rotation.z = -Math.PI / 4;
+    ponyR.add(tieR);
+    const hairR = new THREE.Mesh(ponyTailGeom, hairMat);
+    hairR.scale.set(1, 1.5, 1);
+    hairR.position.set(-2, -1, 0);
+    ponyR.add(hairR);
+    ponyR.position.set(-4, 20, 0);
+    group.add(ponyR);
+
+    // 臉部細節：眼睛 (大一點，增加神采)
+    const blackMat = new THREE.MeshBasicMaterial({ color: 0x000000 });
+    const eye1 = new THREE.Mesh(new THREE.SphereGeometry(0.6, 16, 16), blackMat);
+    eye1.position.set(1.8, 18.5, 3.8);
+    group.add(eye1);
+    const eye2 = new THREE.Mesh(new THREE.SphereGeometry(0.6, 16, 16), blackMat);
+    eye2.position.set(-1.8, 18.5, 3.8);
+    group.add(eye2);
+
+    // 臉頰 (紅暈)
+    const blushMat = new THREE.MeshBasicMaterial({ color: 0xffb6c1, transparent: true, opacity: 0.6 });
+    const blush1 = new THREE.Mesh(new THREE.SphereGeometry(0.8, 16, 16), blushMat);
+    blush1.position.set(3, 17.5, 3.5);
+    group.add(blush1);
+    const blush2 = new THREE.Mesh(new THREE.SphereGeometry(0.8, 16, 16), blushMat);
+    blush2.position.set(-3, 17.5, 3.5);
+    group.add(blush2);
+
+    // 腿 (穿襪子跟鞋子)
+    const legs = [];
+    const legGeom = new THREE.CylinderGeometry(1, 0.8, 6, 16);
+
+    const createLeg = (x) => {
+        const legGroup = new THREE.Group();
+        const leg = new THREE.Mesh(legGeom, skinMat);
+        legGroup.add(leg);
+
+        const sock = new THREE.Mesh(new THREE.CylinderGeometry(1.1, 1.1, 2, 16), socksMat);
+        sock.position.y = -2;
+        legGroup.add(sock);
+
+        const shoe = new THREE.Mesh(new THREE.BoxGeometry(2.5, 1.5, 4), shoesMat);
+        shoe.position.set(0, -3, 1);
+        legGroup.add(shoe);
+
+        legGroup.position.set(x, 3, 0);
+        group.add(legGroup);
+        legs.push(legGroup);
+    };
+
+    createLeg(1.8);
+    createLeg(-1.8);
+
+    // 手 (更自然的角度)
+    const armGeom = new THREE.CylinderGeometry(0.7, 0.7, 8, 16);
+    const armL = new THREE.Mesh(armGeom, skinMat);
+    armL.position.set(4.5, 12, 0);
+    armL.rotation.z = -0.4;
+    group.add(armL);
+    const armR = new THREE.Mesh(armGeom, skinMat);
+    armR.position.set(-4.5, 12, 0);
+    armR.rotation.z = 0.4;
+    group.add(armR);
+
+    return { group, legs };
+}
+
+// 建立閉合型圍欄 (閉合圈)
+function createClosedEnclosure(centerX, centerZ, size) {
+    const halfSize = size / 2;
+    const fenceWidth = 30; // 每個圍隔的長度
+    const numFences = Math.ceil(size / fenceWidth);
+
+    // 紀錄邊界
+    farmEnclosures.push({
+        xMin: centerX - halfSize,
+        xMax: centerX + halfSize,
+        zMin: centerZ - halfSize,
+        zMax: centerZ + halfSize
+    });
+
+    for (let i = 0; i < numFences; i++) {
+        // 北邊
+        createFence(centerX - halfSize + i * fenceWidth + fenceWidth / 2, centerZ - halfSize, 0);
+        // 南邊
+        createFence(centerX - halfSize + i * fenceWidth + fenceWidth / 2, centerZ + halfSize, 0);
+        // 西邊
+        createFence(centerX - halfSize, centerZ - halfSize + i * fenceWidth + fenceWidth / 2, Math.PI / 2);
+        // 東邊
+        createFence(centerX + halfSize, centerZ - halfSize + i * fenceWidth + fenceWidth / 2, Math.PI / 2);
+    }
 }
 
 // 數據管理
@@ -714,6 +1081,9 @@ function addPet(forcedType = null) {
 
 function add3DPet(breed) {
     const { group, legs, tail, tongue } = createPetModel(breed);
+    const hint = createHintSprite();
+    group.add(hint);
+
     let r = Math.random() * 200;
     let theta = Math.random() * Math.PI * 2;
     group.position.set(Math.cos(theta) * r, 0, Math.sin(theta) * r);
@@ -725,6 +1095,7 @@ function add3DPet(breed) {
         legs: legs,
         tail: tail,
         tongue: tongue,
+        hint: hint,
         breed: breed,
         walking: true,
         velocityX: (Math.random() - 0.5) * 1.0,
@@ -874,3 +1245,41 @@ window.deleteNote = deleteNote;
 window.completeNote = completeNote;
 window.deleteDiary = deleteDiary;
 document.addEventListener('DOMContentLoaded', initApp);
+
+// 建立抓取提示標籤
+function createHintSprite() {
+    const canvas = document.createElement('canvas');
+    canvas.width = 128;
+    canvas.height = 64;
+    const ctx = canvas.getContext('2d');
+
+    // 背景 (圓角矩形)
+    ctx.fillStyle = 'rgba(0, 0, 0, 0.6)';
+    const xBorder = 0, yBorder = 0, wBorder = 128, hBorder = 64, rBorder = 15;
+    ctx.beginPath();
+    ctx.moveTo(xBorder + rBorder, yBorder);
+    ctx.lineTo(xBorder + wBorder - rBorder, yBorder);
+    ctx.quadraticCurveTo(xBorder + wBorder, yBorder, xBorder + wBorder, yBorder + rBorder);
+    ctx.lineTo(xBorder + wBorder, yBorder + hBorder - rBorder);
+    ctx.quadraticCurveTo(xBorder + wBorder, yBorder + hBorder, xBorder + wBorder - rBorder, yBorder + hBorder);
+    ctx.lineTo(xBorder + rBorder, yBorder + hBorder);
+    ctx.quadraticCurveTo(xBorder, yBorder + hBorder, xBorder, yBorder + hBorder - rBorder);
+    ctx.lineTo(xBorder, yBorder + rBorder);
+    ctx.quadraticCurveTo(xBorder, yBorder, xBorder + rBorder, yBorder);
+    ctx.closePath();
+    ctx.fill();
+
+    // 文字
+    ctx.font = 'bold 28px Arial';
+    ctx.fillStyle = 'white';
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+    ctx.fillText('抓我 🤚', 64, 32);
+
+    const texture = new THREE.CanvasTexture(canvas);
+    const material = new THREE.SpriteMaterial({ map: texture, transparent: true });
+    const sprite = new THREE.Sprite(material);
+    sprite.scale.set(16, 8, 1);
+    sprite.visible = false;
+    return sprite;
+}
