@@ -13,6 +13,9 @@ let farmEnclosures = []; // 存儲閉合圍籬的範圍
 let smokeParticles = []; // 帳篷冒煙粒子
 let butterflies = []; // 儲存蝴蝶物件
 let rainbow; // 彩虹物件
+let dolphins = []; // 海豚物件
+let whale; // 鯨魚物件
+let spoutParticles = []; // 鯨魚噴水粒子
 
 // DOM 元素
 const diaryContent = document.getElementById('diaryContent');
@@ -148,6 +151,12 @@ function initThreeJS() {
 
     // 彩虹
     createRainbow();
+
+    // 海洋生態
+    createOcean();
+    createDolphin(600, -50, 400); // 在海中不同位置產生海豚
+    createDolphin(750, -50, 200);
+    createWhale(800, -60, -200);
 
     // 建立小女生
     const girlModel = createGirlModel();
@@ -921,6 +930,89 @@ function createButterfly(x, y, z) {
         wingR: wingRGroup,
         offset: Math.random() * Math.PI * 2
     });
+}
+
+// 建立海洋區域
+function createOcean() {
+    // 海面
+    const oceanGeom = new THREE.PlaneGeometry(1500, 2000);
+    const oceanMat = new THREE.MeshPhongMaterial({
+        color: 0x006994,
+        transparent: true,
+        opacity: 0.8,
+        shininess: 100
+    });
+    const ocean = new THREE.Mesh(oceanGeom, oceanMat);
+    ocean.rotation.x = -Math.PI / 2;
+    ocean.position.set(1000, -35, 0); // 放在農場右側
+    scene.add(ocean);
+
+    // 海岸沙灘
+    const sandGeom = new THREE.PlaneGeometry(100, 2000);
+    const sandMat = new THREE.MeshLambertMaterial({ color: 0xF2D2BD });
+    const sand = new THREE.Mesh(sandGeom, sandMat);
+    sand.rotation.x = -Math.PI / 2;
+    sand.position.set(280, -34.5, 0);
+    scene.add(sand);
+}
+
+// 建立跳躍海豚
+function createDolphin(x, y, z) {
+    const group = new THREE.Group();
+    const dMat = new THREE.MeshPhongMaterial({ color: 0x87CEEB });
+
+    // 身體 (流線型)
+    const body = new THREE.Mesh(new THREE.CapsuleGeometry(5, 12, 4, 8), dMat);
+    body.rotation.z = Math.PI / 2;
+    group.add(body);
+
+    // 背鰭
+    const fin = new THREE.Mesh(new THREE.BoxGeometry(1, 6, 4), dMat);
+    fin.position.y = 4;
+    fin.rotation.x = -Math.PI / 4;
+    group.add(fin);
+
+    group.position.set(x, y, z);
+    group.rotation.y = Math.PI / 2;
+    scene.add(group);
+
+    dolphins.push({
+        group: group,
+        jumpTimer: 0,
+        offset: Math.random() * Math.PI * 2
+    });
+}
+
+// 建立抹香鯨與噴水
+function createWhale(x, y, z) {
+    const group = new THREE.Group();
+    const wMat = new THREE.MeshPhongMaterial({ color: 0x4B4B4B });
+
+    // 抹香鯨特徵的大頭身
+    const body = new THREE.Mesh(new THREE.BoxGeometry(40, 40, 100), wMat);
+    body.position.y = 20;
+    group.add(body);
+
+    // 尾部縮小
+    const tail = new THREE.Mesh(new THREE.BoxGeometry(30, 30, 40), wMat);
+    tail.position.z = -60;
+    tail.position.y = 20;
+    group.add(tail);
+
+    group.position.set(x, y, z);
+    scene.add(group);
+
+    whale = { group: group };
+
+    // 初始化噴水粒子
+    const spoutMat = new THREE.MeshBasicMaterial({ color: 0xffffff, transparent: true, opacity: 0 });
+    const spoutGeom = new THREE.SphereGeometry(1.5, 8, 8);
+    for (let i = 0; i < 30; i++) {
+        const p = new THREE.Mesh(spoutGeom, spoutMat.clone());
+        p.position.set(x, y + 40, z);
+        scene.add(p);
+        spoutParticles.push(p);
+    }
 }
 
 // 建立河流
