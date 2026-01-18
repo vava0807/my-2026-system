@@ -102,6 +102,21 @@ function initThreeJS() {
         createCloud();
     }
 
+    // 帳篷
+    createTent();
+
+    // 圍欄
+    createFence(0, -100, 0);
+    createFence(35, -100, 0);
+    createFence(-120, 20, Math.PI / 2);
+    createFence(-120, -15, Math.PI / 2);
+
+    // 花叢
+    createFlowerPatch(50, 50);
+    createFlowerPatch(-100, 80);
+    createFlowerPatch(80, -30);
+    createFlowerPatch(-50, -150);
+
     // 動畫循環
     function animate() {
         requestAnimationFrame(animate);
@@ -460,7 +475,7 @@ function createSun() {
     const sunGeom = new THREE.SphereGeometry(40, 32, 32);
     const sunMat = new THREE.MeshBasicMaterial({ color: 0xFFEF00 }); // 發亮黃色
     sun = new THREE.Mesh(sunGeom, sunMat);
-    sun.position.set(-400, 500, -600); // 高高在上
+    sun.position.set(-100, 250, -600); // 降低高度
     scene.add(sun);
 
     // 太陽光輝 (外圈)
@@ -485,7 +500,7 @@ function createCloud() {
 
     // 隨機位置
     const x = Math.random() * 1600 - 800;
-    const y = 300 + Math.random() * 150;
+    const y = 150 + Math.random() * 100; // 降低高度
     const z = Math.random() * 1000 - 500;
     group.position.set(x, y, z);
 
@@ -494,6 +509,84 @@ function createCloud() {
 
     scene.add(group);
     clouds.push(group);
+}
+
+// 建立帳篷
+function createTent() {
+    const group = new THREE.Group();
+
+    // 帳篷主體 (角錐)
+    const geom = new THREE.ConeGeometry(40, 60, 4);
+    const mat = new THREE.MeshLambertMaterial({ color: 0xffffff });
+    const tent = new THREE.Mesh(geom, mat);
+    tent.position.y = 30;
+    tent.rotation.y = Math.PI / 4;
+    group.add(tent);
+
+    // 條紋裝飾 (藍色)
+    const stripeMat = new THREE.MeshLambertMaterial({ color: 0x3498db });
+    for (let i = 0; i < 4; i++) {
+        const stripe = new THREE.Mesh(new THREE.BoxGeometry(5, 61, 41), stripeMat);
+        stripe.position.y = 30;
+        stripe.rotation.y = (Math.PI / 2) * i + Math.PI / 4;
+        group.add(stripe);
+    }
+
+    group.position.set(-80, 0, -50);
+    scene.add(group);
+}
+
+// 建立圍欄
+function createFence(x, z, rot) {
+    const group = new THREE.Group();
+    const woodMat = new THREE.MeshLambertMaterial({ color: 0x8B4513 });
+
+    // 兩個立柱
+    const post1 = new THREE.Mesh(new THREE.BoxGeometry(4, 15, 4), woodMat);
+    post1.position.set(-15, 7.5, 0);
+    group.add(post1);
+
+    const post2 = new THREE.Mesh(new THREE.BoxGeometry(4, 15, 4), woodMat);
+    post2.position.set(15, 7.5, 0);
+    group.add(post2);
+
+    // 橫木
+    const rail1 = new THREE.Mesh(new THREE.BoxGeometry(34, 3, 2), woodMat);
+    rail1.position.set(0, 5, 0);
+    group.add(rail1);
+
+    const rail2 = new THREE.Mesh(new THREE.BoxGeometry(34, 3, 2), woodMat);
+    rail2.position.set(0, 11, 0);
+    group.add(rail2);
+
+    group.position.set(x, 0, z);
+    group.rotation.y = rot;
+    scene.add(group);
+}
+
+// 建立花叢
+function createFlowerPatch(x, z) {
+    const group = new THREE.Group();
+    const colors = [0xff6b6b, 0xffd93d, 0xff8e9e];
+
+    for (let i = 0; i < 5; i++) {
+        const flower = new THREE.Group();
+        // 莖
+        const stem = new THREE.Mesh(new THREE.CylinderGeometry(0.5, 0.5, 5), new THREE.MeshLambertMaterial({ color: 0x27ae60 }));
+        stem.position.y = 2.5;
+        flower.add(stem);
+
+        // 花頭
+        const head = new THREE.Mesh(new THREE.SphereGeometry(2, 8, 8), new THREE.MeshLambertMaterial({ color: colors[Math.floor(Math.random() * colors.length)] }));
+        head.position.y = 5;
+        flower.add(head);
+
+        flower.position.set((Math.random() - 0.5) * 20, 0, (Math.random() - 0.5) * 20);
+        group.add(flower);
+    }
+
+    group.position.set(x, 0, z);
+    scene.add(group);
 }
 
 // 數據管理
