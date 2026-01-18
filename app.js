@@ -27,6 +27,7 @@ let rainbow; // 彩虹物件
 let dolphins = []; // 海豚物件
 let whale; // 鯨魚物件
 let spoutParticles = []; // 鯨魚噴水粒子
+let fishes = []; // 小魚物件
 
 // DOM 元素
 const diaryContent = document.getElementById('diaryContent');
@@ -64,6 +65,12 @@ let stats = {
     totalDiaries: 0,
     lastEntryDate: null
 };
+
+// --- 地圖分區判定 (格局擴張版) ---
+function isPositionOnWater(x, z) {
+    const dist = Math.sqrt(x * x + z * z);
+    return dist > 400; // 超出島嶼半徑即為海洋
+}
 
 // 初始化 Three.js 3D 場景
 function initThreeJS() {
@@ -107,12 +114,25 @@ function initThreeJS() {
         controls.minDistance = 100; // 限制最小縮放距離
     }
 
-    // 地面 - 圓形草地
-    const groundGeometry = new THREE.CircleGeometry(400, 64);
-    const groundMaterial = new THREE.MeshLambertMaterial({ color: 0x90EE90, transparent: true, opacity: 0.8 });
-    const ground = new THREE.Mesh(groundGeometry, groundMaterial);
+    // 地面 - 中央島嶼 (草地 - 擴張版)
+    const groundGeom = new THREE.CircleGeometry(400, 64);
+    const groundMat = new THREE.MeshLambertMaterial({ color: 0x90EE90 });
+    const ground = new THREE.Mesh(groundGeom, groundMat);
     ground.rotation.x = -Math.PI / 2;
     scene.add(ground);
+
+    // 大海 (外圍 - 擴張版)
+    const seaGeom = new THREE.CircleGeometry(700, 32);
+    const seaMat = new THREE.MeshPhongMaterial({
+        color: 0x006994,
+        transparent: true,
+        opacity: 0.9,
+        shininess: 100
+    });
+    const sea = new THREE.Mesh(seaGeom, seaMat);
+    sea.rotation.x = -Math.PI / 2;
+    sea.position.y = -10; // 低於地面
+    scene.add(sea);
 
     // 光源
     const ambientLight = new THREE.AmbientLight(0xffffff, 0.8);
@@ -125,8 +145,8 @@ function initThreeJS() {
     // 唯一的閉合型小圍籬
     createClosedEnclosure(100, 100, 60);
 
-    // 裝飾場景：小樹 (大幅增加密度)
-    for (let i = 0; i < 80; i++) {
+    // 裝飾場景：小樹 (適度精簡)
+    for (let i = 0; i < 45; i++) {
         createTree();
     }
 
@@ -141,30 +161,34 @@ function initThreeJS() {
     // 帳篷
     createTent();
 
-    // 更多的裝飾圍欄 (散落在場景各處)
+    // 更多的裝飾圍欄 (散落在場景各處，確保在島內)
     for (let i = 0; i < 5; i++) {
-        createFence(-220 + i * 35, -220, 0);
-        createFence(180, -250 + i * 35, Math.PI / 2);
-        createFence(-320, 100 + i * 35, Math.PI / 2);
+        createFence(-250 + i * 35, -250, 0);
+        createFence(250, -280 + i * 35, Math.PI / 2);
+        createFence(-320, 150 + i * 35, Math.PI / 2);
     }
 
-    // 花叢 (極致聚集版：分組生成 + 避開圍欄)
+    // 花叢 (分組生成 + 嚴格限制在島嶼內)
     const numClusters = 6;
     const flowersPerCluster = 10;
     for (let c = 0; c < numClusters; c++) {
         let centerX, centerZ;
+        let attempts = 0;
         do {
-            centerX = (Math.random() - 0.5) * 500;
-            centerZ = (Math.random() - 0.5) * 500;
-        } while (isInEnclosure(centerX, centerZ, 50)); // 加大半徑確保叢集不要太靠近
+            const r = Math.random() * 320; // 擴張生成範圍
+            const theta = Math.random() * Math.PI * 2;
+            centerX = Math.cos(theta) * r;
+            centerZ = Math.sin(theta) * r;
+            attempts++;
+        } while (isInEnclosure(centerX, centerZ, 50) && attempts < 20);
 
         for (let i = 0; i < flowersPerCluster; i++) {
-            const fx = centerX + (Math.random() - 0.5) * 80;
-            const fz = centerZ + (Math.random() - 0.5) * 80;
-            if (!isInEnclosure(fx, fz, 5)) {
-                createFlowerPatch(fx, fz);
+            const fx = centerX + (Math.random() - 0.5) * 60;
+            const fz = centerZ + (Math.random() - 0.5) * 60;
 
-                // 在部分花叢周圍產生小蝴蝶
+            const dist = Math.sqrt(fx * fx + fz * fz);
+            if (!isInEnclosure(fx, fz, 5) && dist < 380) { // 限制在 380 以內
+                createFlowerPatch(fx, fz);
                 if (Math.random() < 0.3) {
                     createButterfly(fx, 15, fz);
                 }
@@ -172,14 +196,22 @@ function initThreeJS() {
         }
     }
 
-    // 彩虹
-    createRainbow();
 
-    // 海洋生態
-    createOcean();
-    createDolphin(600, -50, 400); // 在海中不同位置產生海豚
-    createDolphin(750, -50, 200);
-    createWhale(800, -60, -200);
+    // 海洋生態 (分佈在島嶼外圍 450 ~ 650 範圍)
+    createDolphin(500, -20, 0);
+    createDolphin(-400, -20, 500);
+    createWhale(0, -40, -550);
+
+    // 增加魚群 (色彩鮮豔的熱帶魚 - 增加到 40 隻，速度調至極慢，且遠離陸地)
+    const fishColors = [0xff6b6b, 0xffd93d, 0x6bcbff, 0x95e1d3, 0xfce38a];
+    for (let i = 0; i < 40; i++) {
+        const r = 520 + Math.random() * 150; // 外移至更遠的海域 (距離陸地 >120 單位)
+        const theta = Math.random() * Math.PI * 2;
+        const fx = Math.cos(theta) * r;
+        const fz = Math.sin(theta) * r;
+        const fy = -15 - Math.random() * 30;
+        createFish(fx, fy, fz, fishColors[Math.floor(Math.random() * fishColors.length)]);
+    }
 
     // 建立小女生
     const girlModel = createGirlModel();
@@ -212,35 +244,28 @@ function initThreeJS() {
                 let nextX = petObj.mesh.position.x + petObj.velocityX;
                 let nextZ = petObj.mesh.position.z + petObj.velocityZ;
 
-                // 檢查是否撞到閉合圍籬的邊界
-                const currentInEnclosure = farmEnclosures.some(enc =>
-                    petObj.mesh.position.x >= enc.xMin && petObj.mesh.position.x <= enc.xMax &&
-                    petObj.mesh.position.z >= enc.zMin && petObj.mesh.position.z <= enc.zMax
-                );
-
-                const nextInEnclosure = farmEnclosures.some(enc =>
-                    nextX >= enc.xMin && nextX <= enc.xMax &&
-                    nextZ >= enc.zMin && nextZ <= enc.zMax
-                );
-
-                if (currentInEnclosure !== nextInEnclosure) {
+                // 邊界檢查 (島嶼圓形邊界 dist < 290)
+                if (isPositionOnWater(nextX, nextZ)) {
                     petObj.velocityX *= -1;
                     petObj.velocityZ *= -1;
+                    nextX = petObj.mesh.position.x;
+                    nextZ = petObj.mesh.position.z;
                     updatePetRotation(petObj);
-                    nextX = petObj.mesh.position.x + petObj.velocityX;
-                    nextZ = petObj.mesh.position.z + petObj.velocityZ;
+                }
+
+                // 檢查是否撞到閉合圍籬
+                const nextInEnclosure = isInEnclosure(nextX, nextZ, 5);
+                const currentInEnclosure = isInEnclosure(petObj.mesh.position.x, petObj.mesh.position.z, 5);
+                if (nextInEnclosure !== currentInEnclosure) {
+                    petObj.velocityX *= -1;
+                    petObj.velocityZ *= -1;
+                    nextX = petObj.mesh.position.x;
+                    nextZ = petObj.mesh.position.z;
+                    updatePetRotation(petObj);
                 }
 
                 petObj.mesh.position.x = nextX;
                 petObj.mesh.position.z = nextZ;
-
-                // 邊界檢查 (草地邊界)
-                const dist = Math.sqrt(petObj.mesh.position.x ** 2 + petObj.mesh.position.z ** 2);
-                if (dist > 350) {
-                    petObj.velocityX *= -1;
-                    petObj.velocityZ *= -1;
-                    updatePetRotation(petObj);
-                }
 
                 // 隨機轉向
                 if (Math.random() < 0.01) {
@@ -283,24 +308,14 @@ function initThreeJS() {
             let nextX = girl.mesh.position.x + Math.cos(girl.angle) * girl.speed;
             let nextZ = girl.mesh.position.z + Math.sin(girl.angle) * girl.speed;
 
-            const currentInEnclosure = farmEnclosures.some(enc =>
-                girl.mesh.position.x >= enc.xMin && girl.mesh.position.x <= enc.xMax &&
-                girl.mesh.position.z >= enc.zMin && girl.mesh.position.z <= enc.zMax
-            );
-
-            const nextInEnclosure = farmEnclosures.some(enc =>
-                nextX >= enc.xMin && nextX <= enc.xMax &&
-                nextZ >= enc.zMin && nextZ <= enc.zMax
-            );
-
-            if (currentInEnclosure !== nextInEnclosure) {
-                girl.angle += Math.PI;
-                nextX = girl.mesh.position.x + Math.cos(girl.angle) * girl.speed;
-                nextZ = girl.mesh.position.z + Math.sin(girl.angle) * girl.speed;
+            // 邊界檢查
+            if (isPositionOnWater(nextX, nextZ)) {
+                girl.angle += Math.PI * (0.8 + Math.random() * 0.4);
+            } else {
+                girl.mesh.position.x = nextX;
+                girl.mesh.position.z = nextZ;
             }
 
-            girl.mesh.position.x = nextX;
-            girl.mesh.position.z = nextZ;
             girl.mesh.rotation.y = -girl.angle + Math.PI / 2;
 
             const walkSpeed = 8;
@@ -413,24 +428,52 @@ function initThreeJS() {
 
         // 鯨魚動畫與噴水
         if (whale) {
-            // 抹香鯨緩慢游動
+            // 抹香鯨緩慢游動 (在深度 -40 ~ -60 之間)
             whale.group.position.z += Math.sin(time * 0.2) * 0.2;
-            whale.group.position.y = -60 + Math.sin(time * 0.5) * 5;
+            whale.group.position.y = -50 + Math.sin(time * 0.5) * 5;
 
-            // 定時噴水
+            // 定時噴水 (垂直水柱版)
             if (Math.sin(time * 1.5) > 0.8) {
-                for (let i = 0; i < 3; i++) {
+                for (let i = 0; i < 5; i++) { // 增加粒子數
                     const sp = spoutParticles[Math.floor(Math.random() * spoutParticles.length)];
                     if (sp.material.opacity < 0.1) {
-                        sp.position.set(whale.group.position.x, whale.group.position.y + 45, whale.group.position.z);
-                        sp.material.opacity = 0.8;
-                        sp.userData.vy = 2 + Math.random() * 2;
-                        sp.userData.vx = (Math.random() - 0.5) * 0.5;
-                        sp.userData.vz = (Math.random() - 0.5) * 0.5;
+                        // 從方頭的前端噴出
+                        sp.position.set(whale.group.position.x, whale.group.position.y + 40, whale.group.position.z);
+                        sp.material.opacity = 0.9;
+                        sp.userData.vy = 4.0 + Math.random() * 2.0; // 明顯向上的初速度
+                        sp.userData.vx = (Math.random() - 0.5) * 0.2; // 極小擴散
+                        sp.userData.vz = (Math.random() - 0.5) * 0.2;
+                        sp.scale.set(0.8, 0.8, 0.8);
                     }
                 }
             }
         }
+
+        // 魚群動畫 (環島游動)
+        fishes.forEach(f => {
+            f.angle += f.speed;
+            f.group.position.x = Math.cos(f.angle) * f.radius;
+            f.group.position.z = Math.sin(f.angle) * f.radius;
+            f.group.rotation.y = -f.angle + Math.PI; // 臉部朝向前方
+
+            // 跳躍週期邏輯 (節奏調至極慢)
+            const jumpTime = (time * 0.3 + f.offset) % (Math.PI * 2);
+            if (jumpTime < Math.PI) {
+                // 向上躍起
+                const jumpHeight = Math.sin(jumpTime) * 12; // 稍微調低跳躍高度
+                f.group.position.y = -15 + jumpHeight;
+                f.group.rotation.x = -Math.cos(jumpTime) * 0.8;
+            } else {
+                // 水面下潛游
+                f.group.position.y = -15 + Math.sin(time * 1.5 + f.offset) * 1.0;
+                f.group.rotation.x = 0;
+            }
+
+            // 尾巴擺動 (節奏調至最慢)
+            if (f.tail) {
+                f.tail.rotation.y = Math.sin(time * 8 + f.offset) * 0.5;
+            }
+        });
 
         // 鯨魚噴水粒子更新
         spoutParticles.forEach(p => {
@@ -438,9 +481,9 @@ function initThreeJS() {
                 p.position.y += p.userData.vy;
                 p.position.x += p.userData.vx;
                 p.position.z += p.userData.vz;
-                p.userData.vy -= 0.1; // 重力
-                p.material.opacity -= 0.02;
-                p.scale.multiplyScalar(1.02);
+                p.userData.vy -= 0.3; // 強重力感，水往上噴後迅速落下
+                p.material.opacity -= 0.04; // 消失得更快
+                p.scale.multiplyScalar(1.05);
             }
         });
 
@@ -792,12 +835,12 @@ function createTree() {
     let r, theta;
     let attempts = 0;
     do {
-        r = 120 + Math.random() * 280;
+        r = 50 + Math.random() * 330; // 擴張生成範圍 (半徑 400)
         theta = Math.random() * Math.PI * 2;
         x = Math.cos(theta) * r;
         z = Math.sin(theta) * r;
         attempts++;
-    } while (isInEnclosure(x, z, 10) && attempts < 10);
+    } while ((isInEnclosure(x, z, 10) || isPositionOnWater(x, z)) && attempts < 20);
 
     group.position.set(x, 0, z);
 
@@ -1004,29 +1047,7 @@ function createButterfly(x, y, z) {
     });
 }
 
-// 建立海洋區域
-function createOcean() {
-    // 海面
-    const oceanGeom = new THREE.PlaneGeometry(1500, 2000);
-    const oceanMat = new THREE.MeshPhongMaterial({
-        color: 0x006994,
-        transparent: true,
-        opacity: 0.8,
-        shininess: 100
-    });
-    const ocean = new THREE.Mesh(oceanGeom, oceanMat);
-    ocean.rotation.x = -Math.PI / 2;
-    ocean.position.set(1000, -35, 0); // 放在農場右側
-    scene.add(ocean);
-
-    // 海岸沙灘
-    const sandGeom = new THREE.PlaneGeometry(100, 2000);
-    const sandMat = new THREE.MeshLambertMaterial({ color: 0xF2D2BD });
-    const sand = new THREE.Mesh(sandGeom, sandMat);
-    sand.rotation.x = -Math.PI / 2;
-    sand.position.set(280, -34.5, 0);
-    scene.add(sand);
-}
+// 海洋已整合至圓形地面
 
 // 建立跳躍海豚
 function createDolphin(x, y, z) {
@@ -1055,23 +1076,39 @@ function createDolphin(x, y, z) {
     });
 }
 
-// 建立抹香鯨與噴水
+// 建立抹香鯨與噴水 (精緻化方頭版)
 function createWhale(x, y, z) {
     const group = new THREE.Group();
     const wMat = new THREE.MeshPhongMaterial({ color: 0x4B4B4B });
 
-    // 抹香鯨特徵的大頭身
-    const body = new THREE.Mesh(new THREE.BoxGeometry(40, 40, 100), wMat);
-    body.position.y = 20;
+    // 抹香鯨特徵的大頭 (巨大的矩形前端)
+    const head = new THREE.Mesh(new THREE.BoxGeometry(35, 30, 50), wMat);
+    head.position.set(0, 15, 25);
+    group.add(head);
+
+    // 身體 (逐漸變細的後半部)
+    const body = new THREE.Mesh(new THREE.BoxGeometry(25, 20, 60), wMat);
+    body.position.set(0, 13, -25);
     group.add(body);
 
-    // 尾部縮小
-    const tail = new THREE.Mesh(new THREE.BoxGeometry(30, 30, 40), wMat);
-    tail.position.z = -60;
-    tail.position.y = 20;
-    group.add(tail);
+    // 尾部鰭
+    const tailFluke = new THREE.Mesh(new THREE.BoxGeometry(40, 2, 20), wMat);
+    tailFluke.position.set(0, 15, -60);
+    group.add(tailFluke);
+
+    // 側面小鰭
+    const finL = new THREE.Mesh(new THREE.BoxGeometry(10, 2, 15), wMat);
+    finL.position.set(18, 5, 0);
+    finL.rotation.z = 0.5;
+    group.add(finL);
+
+    const finR = new THREE.Mesh(new THREE.BoxGeometry(10, 2, 15), wMat);
+    finR.position.set(-18, 5, 0);
+    finR.rotation.z = -0.5;
+    group.add(finR);
 
     group.position.set(x, y, z);
+    group.rotation.y = Math.PI * 0.25; // 朝向海洋中心
     scene.add(group);
 
     whale = { group: group };
@@ -1087,31 +1124,76 @@ function createWhale(x, y, z) {
     }
 }
 
-// 建立河流
+// 建立小型熱帶魚
+function createFish(x, y, z, color) {
+    const group = new THREE.Group();
+    const fMat = new THREE.MeshPhongMaterial({ color: color });
+
+    // 魚身 (流線型扁平體)
+    const bodyGeom = new THREE.BoxGeometry(4, 3, 1);
+    const body = new THREE.Mesh(bodyGeom, fMat);
+    group.add(body);
+
+    // 魚尾 (三角形)
+    const tailGeom = new THREE.ConeGeometry(2, 4, 3);
+    const tail = new THREE.Mesh(tailGeom, fMat);
+    tail.rotation.z = Math.PI / 2;
+    tail.rotation.y = Math.PI / 2;
+    tail.position.x = -3;
+    group.add(tail);
+
+    // 眼睛
+    const eyeGeom = new THREE.SphereGeometry(0.3, 8, 8);
+    const eyeMat = new THREE.MeshBasicMaterial({ color: 0x000000 });
+    const eyeL = new THREE.Mesh(eyeGeom, eyeMat);
+    eyeL.position.set(1.5, 0.5, 0.5);
+    group.add(eyeL);
+    const eyeR = new THREE.Mesh(eyeGeom, eyeMat);
+    eyeR.position.set(1.5, 0.5, -0.5);
+    group.add(eyeR);
+
+    group.position.set(x, y, z);
+    scene.add(group);
+
+    const dist = Math.sqrt(x * x + z * z);
+    const angle = Math.atan2(z, x);
+
+    fishes.push({
+        group: group,
+        tail: tail,
+        radius: dist,
+        angle: angle,
+        speed: 0.001 + Math.random() * 0.002, // 進一步減慢環島速度
+        offset: Math.random() * Math.PI * 2
+    });
+}
+
+// 建立河流 (縮短至島嶼內，避免伸入海面)
 function createRiver() {
     const points = [];
+    // 縮短範圍使其待在島內 (-250 到 250)
     for (let i = 0; i < 20; i++) {
-        const x = -400 + i * 40;
-        const z = Math.sin(i * 0.5) * 50;
+        const x = -250 + i * 26.3; // 250 - (-250) = 500, 500/19 approx 26.3
+        const z = Math.sin(i * 0.5) * 40;
         points.push(new THREE.Vector2(x, z));
     }
 
     // 將點轉化為形狀
     const shape = new THREE.Shape();
-    shape.moveTo(points[0].x, points[0].y - 20);
+    shape.moveTo(points[0].x, points[0].y - 15);
     for (let i = 1; i < points.length; i++) {
-        shape.lineTo(points[i].x, points[i].y - 20);
+        shape.lineTo(points[i].x, points[i].y - 15);
     }
     for (let i = points.length - 1; i >= 0; i--) {
-        shape.lineTo(points[i].x, points[i].y + 20);
+        shape.lineTo(points[i].x, points[i].y + 15);
     }
     shape.closePath();
 
     const geom = new THREE.ShapeGeometry(shape);
-    const mat = new THREE.MeshLambertMaterial({ color: 0x4fc3f7, transparent: true, opacity: 0.6 });
+    const mat = new THREE.MeshLambertMaterial({ color: 0x4fc3f7, transparent: true, opacity: 0.5 });
     const river = new THREE.Mesh(geom, mat);
     river.rotation.x = -Math.PI / 2;
-    river.position.y = 0.2; // 略高於地面
+    river.position.y = 0.5; // 略高於地面
     scene.add(river);
 }
 
