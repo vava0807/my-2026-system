@@ -20,7 +20,7 @@ body {
 /* 主要布局：三欄設計 */
 .main-layout {
     display: grid;
-    grid-template-columns: 300px 1fr 350px;
+    grid-template-columns: 1fr 1fr;
     gap: 20px;
     align-items: start;
 }
@@ -64,8 +64,8 @@ body {
     border-radius: 20px;
     box-shadow: 0 8px 20px rgba(0, 0, 0, 0.1);
     border: 4px dashed #ff6b6b;
-    grid-column: 2;
-    min-height: 600px;
+    grid-column: 1 / span 2;
+    min-height: 500px;
     display: flex;
     flex-direction: column;
 }
@@ -132,8 +132,15 @@ body {
 }
 
 @keyframes petBounce {
-    0%, 100% { transform: translateY(0); }
-    50% { transform: translateY(-10px); }
+
+    0%,
+    100% {
+        transform: translateY(0);
+    }
+
+    50% {
+        transform: translateY(-10px);
+    }
 }
 
 .warning-text {
@@ -232,6 +239,7 @@ body {
         opacity: 0;
         transform: translateX(-20px);
     }
+
     to {
         opacity: 1;
         transform: translateX(0);
@@ -291,8 +299,8 @@ body {
     padding: 30px;
     border-radius: 20px;
     box-shadow: 0 8px 20px rgba(0, 0, 0, 0.1);
-    grid-column: 3;
-    min-height: 600px;
+    grid-column: 2;
+    min-height: 400px;
 }
 
 .history-section h2 {
@@ -341,11 +349,11 @@ body {
     .main-layout {
         grid-template-columns: 1fr;
     }
-    
+
     .pet-farm {
         grid-column: 1;
     }
-    
+
     .history-section {
         grid-column: 1;
     }
@@ -355,20 +363,20 @@ body {
     .header h1 {
         font-size: 1.8em;
     }
-    
+
     .pet {
         font-size: 2.5em;
     }
-    
+
     .pet-stats {
         flex-direction: column;
         gap: 10px;
     }
-    
+
     .note-form {
         flex-direction: column;
     }
-    
+
     .main-layout {
         grid-template-columns: 1fr;
     }

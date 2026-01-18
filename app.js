@@ -40,15 +40,17 @@ function initThreeJS() {
     const height = container.clientHeight;
 
     scene = new THREE.Scene();
-    scene.background = new THREE.Color(0x87CEEB);
-    scene.fog = new THREE.Fog(0x87CEEB, 1000, 10);
+    // 移除 scene.background 讓 CSS 背景透出來
+    // scene.background = new THREE.Color(0x87CEEB);
+    // scene.fog = new THREE.Fog(0x87CEEB, 1000, 10);
 
     camera = new THREE.PerspectiveCamera(75, width / height, 0.1, 1000);
-    camera.position.z = 80;
+    camera.position.z = 100; // 稍微退後一點，確保看到更多寵物
 
-    renderer = new THREE.WebGLRenderer({ antialias: true, alpha: false });
+    renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true }); // 開啟 alpha 讓背景透明
     renderer.setSize(width, height);
     renderer.setPixelRatio(window.devicePixelRatio);
+    renderer.domElement.id = 'threeCanvas'; // 設定 ID 以套用 CSS
     container.innerHTML = '';
     container.appendChild(renderer.domElement);
 
