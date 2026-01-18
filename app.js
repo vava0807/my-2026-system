@@ -617,10 +617,12 @@ function addNote() {
 }
 
 function deleteNote(id) {
-    // 檢查這條筆記是否已經完成（有的話通常不會在清單中，但在這裡保險起見）
-    notes = notes.filter(n => n.id !== id);
-    saveAllData();
-    updateUI();
+    if (confirm('確定刪除筆記？對應的貓咪也會消失喔！')) {
+        notes = notes.filter(n => n.id !== id);
+        removePet('cat'); // 筆記對應的是貓
+        saveAllData();
+        updateUI();
+    }
 }
 
 function completeNote(id) {
