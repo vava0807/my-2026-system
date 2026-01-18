@@ -26,7 +26,7 @@ const notesList = document.getElementById('notesList');
 const petContainer = document.getElementById('petContainer');
 const dogCount = document.getElementById('dogCount');
 const catCount = document.getElementById('catCount');
-const totalDiaries = document.getElementById('totalDiaries');
+const totalDiariesEl = document.getElementById('totalDiaries');
 const totalNotes = document.getElementById('totalNotes');
 const diaryHistory = document.getElementById('diaryHistory');
 const warningText = document.getElementById('warningText');
@@ -1236,22 +1236,27 @@ function createClosedEnclosure(centerX, centerZ, size) {
     }
 }
 
-// 數據管理
+// 數據管理 (強健版)
 function loadData() {
-    const savedPets = localStorage.getItem('pets');
-    const savedNotes = localStorage.getItem('notes');
-    const savedDiaries = localStorage.getItem('diaries');
-    const savedStats = localStorage.getItem('stats');
+    try {
+        const savedPets = localStorage.getItem('pets');
+        const savedNotes = localStorage.getItem('notes');
+        const savedDiaries = localStorage.getItem('diaries');
+        const savedStats = localStorage.getItem('stats');
 
-    if (savedPets) pets = JSON.parse(savedPets);
-    if (savedNotes) notes = JSON.parse(savedNotes);
-    if (savedDiaries) diaries = JSON.parse(savedDiaries);
-    if (savedStats) stats = JSON.parse(savedStats);
+        if (savedPets) pets = JSON.parse(savedPets);
+        if (savedNotes) notes = JSON.parse(savedNotes);
+        if (savedDiaries) diaries = JSON.parse(savedDiaries);
+        if (savedStats) stats = JSON.parse(savedStats);
 
-    // 關鍵修正：確保 stats 的數量與實際陣列一致，避免顯示錯誤
-    stats.dogs = pets.filter(p => p.type === 'dog').length;
-    stats.cats = pets.filter(p => p.type === 'cat').length;
-    stats.totalDiaries = diaries.length;
+        // 關鍵修正：確保 stats 的數量與實際陣列一致
+        stats.dogs = pets.filter(p => p.type === 'dog').length;
+        stats.cats = pets.filter(p => p.type === 'cat').length;
+        stats.totalDiaries = diaries.length;
+    } catch (e) {
+        console.error("載入失敗，正在嘗試修復資料...", e);
+        // 如果解析失敗，保留預設值避免毀滅性清空
+    }
 }
 
 // 匯出資料
@@ -1445,7 +1450,7 @@ function updateUI() {
     dogCount.textContent = stats.dogs;
     catCount.textContent = stats.cats;
     totalNotes.textContent = notes.length;
-    totalDiaries.textContent = stats.totalDiaries;
+    totalDiariesEl.textContent = stats.totalDiaries;
 
     notesList.innerHTML = '';
     notes.forEach(n => {
@@ -1467,10 +1472,14 @@ function updateUI() {
 function initApp() {
     loadData();
     initThreeJS();
+
+    if (pets.length === 0 && diaries.length === 0) {
+        console.log("當前網域資料為空，若您是從本地端切換至線上版，請使用『匯入還原』按鈕同步資料。");
+    }
+
     // 兼容舊資料與極致容錯：確保每個寵物都能載入
     pets.forEach(p => {
         const breed = p.breed || p.type || 'shiba';
-        // 檢查 breed 是否存在於模型的定義中 (簡單檢查 breed 是否有效)
         const validBreeds = ['shiba', 'corgi', 'munchkin'];
         const finalBreed = validBreeds.includes(breed) ? breed : 'shiba';
         add3DPet(finalBreed);
@@ -1481,7 +1490,6 @@ function initApp() {
     addNoteBtn.addEventListener('click', addNote);
     noteInput.addEventListener('keypress', e => e.key === 'Enter' && addNote());
 
-    // 綁定同步按鈕 (假設我們在 index.html 加上了 ID)
     const exportBtn = document.getElementById('exportBtn');
     const importBtn = document.getElementById('importBtn');
     if (exportBtn) exportBtn.addEventListener('click', exportData);
