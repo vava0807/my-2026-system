@@ -61,32 +61,58 @@ function initThreeJS() {
     ground.position.z = -50;
     scene.add(ground);
 
-    // 光源
-    const ambientLight = new THREE.AmbientLight(0xffffff, 0.8);
+    // 光源 - 增加強度和陰影感
+    const ambientLight = new THREE.AmbientLight(0xffffff, 0.9);
     scene.add(ambientLight);
 
-    const directionalLight = new THREE.DirectionalLight(0xffffff, 0.6);
-    directionalLight.position.set(100, 100, 50);
+    const directionalLight = new THREE.DirectionalLight(0xffffff, 1.0);
+    directionalLight.position.set(50, 100, 50);
     scene.add(directionalLight);
+
+    // 裝飾場景：增加一些小樹
+    for (let i = 0; i < 15; i++) {
+        createTree();
+    }
 
     function animate() {
         requestAnimationFrame(animate);
+        const time = Date.now() * 0.005;
 
         petObjects.forEach(petObj => {
             if (petObj.walking) {
+                // 移動位置
                 petObj.mesh.position.x += petObj.velocityX;
                 petObj.mesh.position.y += petObj.velocityY;
 
-                if (Math.abs(petObj.mesh.position.x) > 90) petObj.velocityX *= -1;
-                if (Math.abs(petObj.mesh.position.y) > 40) petObj.velocityY *= -1;
-
-                if (Math.random() < 0.01) {
-                    petObj.velocityX = (Math.random() - 0.5) * 0.5;
-                    petObj.velocityY = (Math.random() - 0.5) * 0.5;
+                // 邊界檢查與轉向
+                if (Math.abs(petObj.mesh.position.x) > 150) {
+                    petObj.velocityX *= -1;
+                    updatePetRotation(petObj);
+                }
+                if (Math.abs(petObj.mesh.position.y) > 80) {
+                    petObj.velocityY *= -1;
+                    updatePetRotation(petObj);
                 }
 
-                petObj.mesh.rotation.x += 0.01;
-                petObj.mesh.rotation.y += 0.02;
+                // 隨機轉向
+                if (Math.random() < 0.01) {
+                    petObj.velocityX = (Math.random() - 0.5) * 0.6;
+                    petObj.velocityY = (Math.random() - 0.5) * 0.6;
+                    updatePetRotation(petObj);
+                }
+
+                // 走路動畫：腳擺動 + 身體上下跳動
+                const walkSpeed = 5;
+                const swing = Math.sin(time * walkSpeed) * 0.5;
+
+                petObj.legs.forEach((leg, index) => {
+                    // 對角線的腳同步
+                    const offset = (index === 0 || index === 3) ? 1 : -1;
+                    leg.rotation.x = swing * offset;
+                });
+
+                // 身體上下輕微跳動
+                petObj.mesh.position.z = Math.abs(Math.sin(time * walkSpeed)) * 2;
             }
         });
 
@@ -104,91 +130,104 @@ function initThreeJS() {
     });
 }
 
+// 更新寵物朝向
+function updatePetRotation(petObj) {
+    const angle = Math.atan2(petObj.velocityY, petObj.velocityX);
+    // Three.js 預設朝向是 X 軸，我們需要旋轉使其符合移動方向
+    petObj.mesh.rotation.z = angle;
+    petObj.mesh.rotation.x = Math.PI / 2; // 站立，而不是趴在地面
+}
+
+// 建立裝飾用的樹
+function createTree() {
+    const group = new THREE.Group();
+
+    // 樹幹
+    const trunkGeom = new THREE.CylinderGeometry(2, 2, 8, 8);
+    const trunkMat = new THREE.MeshLambertMaterial({ color: 0x8B4513 });
+    const trunk = new THREE.Mesh(trunkGeom, trunkMat);
+    trunk.rotation.x = Math.PI / 2;
+    group.add(trunk);
+
+    // 樹冠
+    const leavesGeom = new THREE.ConeGeometry(8, 16, 8);
+    const leavesMat = new THREE.MeshLambertMaterial({ color: 0x228B22 });
+    const leaves = new THREE.Mesh(leavesGeom, leavesMat);
+    leaves.position.y = 8;
+    leaves.rotation.x = Math.PI / 2;
+    group.add(leaves);
+
+    group.position.x = (Math.random() - 0.5) * 300;
+    group.position.y = (Math.random() - 0.5) * 200;
+    group.position.z = -5;
+
+    scene.add(group);
+}
+
 // 建立 3D 寵物模型
 function createPetModel(type) {
-    let group = new THREE.Group();
+    const group = new THREE.Group();
+    const legs = [];
 
-    if (type === 'dog') {
-        const bodyGeometry = new THREE.BoxGeometry(20, 15, 20);
-        const bodyMaterial = new THREE.MeshPhongMaterial({ color: 0xD2691E });
-        const body = new THREE.Mesh(bodyGeometry, bodyMaterial);
-        group.add(body);
+    const bodyMat = new THREE.MeshPhongMaterial({ color: type === 'dog' ? 0xD2691E : 0xFF8C42 });
 
-        const headGeometry = new THREE.BoxGeometry(12, 12, 12);
-        const head = new THREE.Mesh(headGeometry, bodyMaterial);
-        head.position.set(12, 5, 0);
-        group.add(head);
+    // 身體
+    const bodyGeom = new THREE.BoxGeometry(12, 8, 8);
+    const body = new THREE.Mesh(bodyGeom, bodyMat);
+    body.position.z = 6;
+    group.add(body);
 
-        const earGeometry = new THREE.BoxGeometry(5, 10, 5);
-        const ear1 = new THREE.Mesh(earGeometry, bodyMaterial);
-        ear1.position.set(8, 15, -5);
-        group.add(ear1);
-        const ear2 = new THREE.Mesh(earGeometry, bodyMaterial);
-        ear2.position.set(8, 15, 5);
-        group.add(ear2);
+    // 頭部
+    const headGeom = new THREE.BoxGeometry(7, 7, 7);
+    const head = new THREE.Mesh(headGeom, bodyMat);
+    head.position.set(8, 0, 10);
+    group.add(head);
 
-        const legGeometry = new THREE.BoxGeometry(5, 12, 5);
-        for (let i = -1; i <= 1; i += 2) {
-            for (let j = -1; j <= 1; j += 2) {
-                const leg = new THREE.Mesh(legGeometry, bodyMaterial);
-                leg.position.set(i * 6, -10, j * 8);
-                group.add(leg);
-            }
-        }
-    } else {
-        const bodyGeometry = new THREE.BoxGeometry(16, 12, 18);
-        const bodyMaterial = new THREE.MeshPhongMaterial({ color: 0xFF8C42 });
-        const body = new THREE.Mesh(bodyGeometry, bodyMaterial);
-        group.add(body);
+    // 眼睛
+    const eyeGeom = new THREE.SphereGeometry(0.8, 8, 8);
+    const eyeMat = new THREE.MeshBasicMaterial({ color: 0x000000 });
+    const eye1 = new THREE.Mesh(eyeGeom, eyeMat);
+    eye1.position.set(11, 2, 11);
+    group.add(eye1);
+    const eye2 = new THREE.Mesh(eyeGeom, eyeMat);
+    eye2.position.set(11, -2, 11);
+    group.add(eye2);
 
-        const headGeometry = new THREE.BoxGeometry(10, 10, 10);
-        const head = new THREE.Mesh(headGeometry, bodyMaterial);
-        head.position.set(10, 4, 0);
-        group.add(head);
+    // 腿部
+    const legGeom = new THREE.BoxGeometry(2, 2, 6);
+    const legPositions = [
+        { x: 4, y: 3 }, { x: 4, y: -3 },
+        { x: -4, y: 3 }, { x: -4, y: -3 }
+    ];
 
-        const earGeometry = new THREE.ConeGeometry(4, 8, 4);
-        const ear1 = new THREE.Mesh(earGeometry, bodyMaterial);
-        ear1.position.set(6, 12, -4);
-        group.add(ear1);
-        const ear2 = new THREE.Mesh(earGeometry, bodyMaterial);
-        ear2.position.set(6, 12, 4);
-        group.add(ear2);
+    legPositions.forEach(pos => {
+        const leg = new THREE.Mesh(legGeom, bodyMat);
+        leg.position.set(pos.x, pos.y, 2);
+        group.add(leg);
+        legs.push(leg);
+    });
 
-        const tailGeometry = new THREE.BoxGeometry(3, 3, 15);
-        const tail = new THREE.Mesh(tailGeometry, bodyMaterial);
-        tail.position.set(-10, 0, 10);
-        tail.rotation.z = 0.3;
-        group.add(tail);
-
-        const legGeometry = new THREE.BoxGeometry(4, 10, 4);
-        for (let i = -1; i <= 1; i += 2) {
-            for (let j = -1; j <= 1; j += 2) {
-                const leg = new THREE.Mesh(legGeometry, bodyMaterial);
-                leg.position.set(i * 5, -9, j * 7);
-                group.add(leg);
-            }
-        }
-    }
-
-    return group;
+    return { group, legs };
 }
 
 function add3DPet(petType) {
-    const mesh = createPetModel(petType);
-    mesh.position.x = (Math.random() - 0.5) * 150;
-    mesh.position.y = (Math.random() - 0.5) * 60;
-    mesh.position.z = 0;
+    const { group, legs } = createPetModel(petType);
+    group.position.x = (Math.random() - 0.5) * 200;
+    group.position.y = (Math.random() - 0.5) * 100;
+    group.position.z = 0;
 
-    scene.add(mesh);
+    scene.add(group);
 
     const petObj = {
-        mesh: mesh,
+        mesh: group,
+        legs: legs,
         type: petType,
         walking: true,
-        velocityX: (Math.random() - 0.5) * 0.5,
-        velocityY: (Math.random() - 0.5) * 0.5
+        velocityX: (Math.random() - 0.5) * 0.6,
+        velocityY: (Math.random() - 0.5) * 0.6
     };
 
+    updatePetRotation(petObj);
     petObjects.push(petObj);
 }
 
