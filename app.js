@@ -94,6 +94,9 @@ function initThreeJS() {
     directionalLight.position.set(100, 200, 100);
     scene.add(directionalLight);
 
+    // 唯一的閉合型小圍籬
+    createClosedEnclosure(100, 100, 60);
+
     // 裝飾場景：小樹 (大幅增加密度)
     for (let i = 0; i < 80; i++) {
         createTree();
@@ -117,19 +120,22 @@ function initThreeJS() {
         createFence(-320, 100 + i * 35, Math.PI / 2);
     }
 
-    // 唯一的閉合型小圍籬
-    createClosedEnclosure(100, 100, 60);
-
-    // 花叢 (極致聚集版：分組生成)
+    // 花叢 (極致聚集版：分組生成 + 避開圍欄)
     const numClusters = 6;
     const flowersPerCluster = 10;
     for (let c = 0; c < numClusters; c++) {
-        const centerX = (Math.random() - 0.5) * 500;
-        const centerZ = (Math.random() - 0.5) * 500;
+        let centerX, centerZ;
+        do {
+            centerX = (Math.random() - 0.5) * 500;
+            centerZ = (Math.random() - 0.5) * 500;
+        } while (isInEnclosure(centerX, centerZ, 50)); // 加大半徑確保叢集不要太靠近
+
         for (let i = 0; i < flowersPerCluster; i++) {
             const fx = centerX + (Math.random() - 0.5) * 80;
             const fz = centerZ + (Math.random() - 0.5) * 80;
-            createFlowerPatch(fx, fz);
+            if (!isInEnclosure(fx, fz, 5)) {
+                createFlowerPatch(fx, fz);
+            }
         }
     }
 
@@ -630,6 +636,17 @@ function updatePetRotation(petObj) {
     petObj.mesh.rotation.y = angle;
 }
 
+// 檢查座標是否在圍欄內
+function isInEnclosure(x, z, padding = 0) {
+    for (let enc of farmEnclosures) {
+        if (x >= enc.xMin - padding && x <= enc.xMax + padding &&
+            z >= enc.zMin - padding && z <= enc.zMax + padding) {
+            return true;
+        }
+    }
+    return false;
+}
+
 // 建立樹 (多樣化版：5 種不同類型)
 function createTree() {
     const group = new THREE.Group();
@@ -642,7 +659,7 @@ function createTree() {
     trunk.position.y = 6;
     group.add(trunk);
 
-    const type = Math.floor(Math.random() * 4);
+    const type = Math.floor(Math.random() * 3);
 
     switch (type) {
         case 0: // 圓錐松樹
@@ -657,7 +674,7 @@ function createTree() {
             sphereLeaves.position.y = 18;
             group.add(sphereLeaves);
             break;
-        case 2: // 雙層圓球 (取代原本的雲朵狀)
+        case 2: // 雙層圓球
             const botSphere = new THREE.Mesh(new THREE.SphereGeometry(9, 16, 16), leavesMat);
             botSphere.position.y = 15;
             group.add(botSphere);
@@ -665,20 +682,20 @@ function createTree() {
             topSphere.position.y = 22;
             group.add(topSphere);
             break;
-        case 3: // 方塊樹 (Low Poly 風)
-            for (let i = 0; i < 3; i++) {
-                const size = 11 - i * 3;
-                const box = new THREE.Mesh(new THREE.BoxGeometry(size, size, size), leavesMat);
-                box.position.y = 15 + i * 5;
-                box.rotation.y = Math.PI / 4 * i;
-                group.add(box);
-            }
-            break;
     }
 
-    let r = 120 + Math.random() * 280;
-    let theta = Math.random() * Math.PI * 2;
-    group.position.set(Math.cos(theta) * r, 0, Math.sin(theta) * r);
+    let x, z;
+    let r, theta;
+    let attempts = 0;
+    do {
+        r = 120 + Math.random() * 280;
+        theta = Math.random() * Math.PI * 2;
+        x = Math.cos(theta) * r;
+        z = Math.sin(theta) * r;
+        attempts++;
+    } while (isInEnclosure(x, z, 10) && attempts < 10);
+
+    group.position.set(x, 0, z);
 
     // 增加隨機高度 (有高有矮)
     const scale = 0.7 + Math.random() * 1.5; // 0.7x ~ 2.2x
