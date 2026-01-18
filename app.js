@@ -196,7 +196,7 @@ function loadData() {
     const savedNotes = localStorage.getItem('notes');
     const savedDiaries = localStorage.getItem('diaries');
     const savedStats = localStorage.getItem('stats');
-    
+
     if (savedPets) pets = JSON.parse(savedPets);
     if (savedNotes) notes = JSON.parse(savedNotes);
     if (savedDiaries) diaries = JSON.parse(savedDiaries);
@@ -217,15 +217,15 @@ function addPet() {
         type: petType,
         createdAt: new Date().toISOString()
     };
-    
+
     pets.push(newPet);
-    
+
     if (petType === 'dog') {
         stats.dogs++;
     } else {
         stats.cats++;
     }
-    
+
     saveAllData();
     if (scene) add3DPet(petType);
     updateUI();
@@ -233,24 +233,24 @@ function addPet() {
 
 function removePet() {
     if (pets.length === 0) return;
-    
+
     const randomIndex = Math.floor(Math.random() * pets.length);
     const petToRemove = pets[randomIndex];
-    
+
     if (petToRemove.type === 'dog') {
         stats.dogs = Math.max(0, stats.dogs - 1);
     } else {
         stats.cats = Math.max(0, stats.cats - 1);
     }
-    
+
     pets.splice(randomIndex, 1);
     saveAllData();
-    
+
     if (scene && petObjects.length > randomIndex) {
         scene.remove(petObjects[randomIndex].mesh);
         petObjects.splice(randomIndex, 1);
     }
-    
+
     updateUI();
     alert(`😢 因為太久沒寫日記，${petToRemove.type === 'dog' ? '🐶' : '🐱'} 離開了農場...`);
 }
@@ -261,15 +261,15 @@ function addNote() {
         alert('請輸入筆記內容！');
         return;
     }
-    
+
     const newNote = {
         id: Date.now().toString(),
         content: content,
         createdAt: new Date().toISOString()
     };
-    
+
     notes.unshift(newNote);
-    
+
     noteInput.value = '';
     saveAllData();
     updateUI();
@@ -287,9 +287,9 @@ function saveDiary() {
         alert('請輸入日記內容！');
         return;
     }
-    
+
     const petType = PET_TYPES[Math.floor(Math.random() * PET_TYPES.length)];
-    
+
     const newDiary = {
         id: Date.now().toString(),
         content: content,
@@ -297,31 +297,33 @@ function saveDiary() {
         petReward: petType,
         dateStr: new Date().toDateString()
     };
-    
+
     diaries.unshift(newDiary);
-    
+
     stats.totalDiaries++;
     stats.lastEntryDate = new Date().toISOString();
-    
+
     addPet();
-    
+
     diaryContent.value = '';
     saveAllData();
     updateUI();
-    
+
     alert(`🎉 日記儲存成功！你獲得了一隻 ${PET_EMOJI[petType]}！`);
 }
 
 function checkMissedDays() {
     // 移除所有限制，寵物和日記無限制
-    warningText.style.display = 'none';
+    if (warningText) {
+        warningText.style.display = 'none';
+    }
 }
 
 function updateUI() {
     dogCount.textContent = stats.dogs;
     catCount.textContent = stats.cats;
     totalDiaries.textContent = stats.totalDiaries;
-    
+
     notesList.innerHTML = '';
     if (notes.length === 0) {
         notesList.innerHTML = '<div class="empty-state"><p>還沒有筆記</p></div>';
@@ -336,7 +338,7 @@ function updateUI() {
             notesList.appendChild(noteItem);
         });
     }
-    
+
     diaryHistory.innerHTML = '';
     if (diaries.length === 0) {
         diaryHistory.innerHTML = '<div class="empty-state"><p>📖</p><p>還沒有日記，開始寫第一篇吧！</p></div>';
@@ -344,15 +346,15 @@ function updateUI() {
         diaries.forEach(diary => {
             const diaryEntry = document.createElement('div');
             diaryEntry.className = 'diary-entry';
-            
+
             const date = new Date(diary.createdAt);
-            const dateStr = date.toLocaleDateString('zh-TW', { 
-                year: 'numeric', 
-                month: 'long', 
+            const dateStr = date.toLocaleDateString('zh-TW', {
+                year: 'numeric',
+                month: 'long',
                 day: 'numeric',
                 weekday: 'long'
             });
-            
+
             diaryEntry.innerHTML = `
                 <div class="diary-entry-date">
                     <span>📅 ${dateStr}</span>
@@ -368,22 +370,40 @@ function updateUI() {
 window.deleteNote = deleteNote;
 
 function initApp() {
+    console.log('Initializing app...');
     loadData();
     checkMissedDays();
-    
+
     setTimeout(() => {
+        if (!petContainer) {
+            console.error('petContainer not found!');
+            return;
+        }
         initThreeJS();
         pets.forEach(pet => {
             add3DPet(pet.type);
         });
         updateUI();
     }, 100);
-    
-    saveDiaryBtn.addEventListener('click', saveDiary);
-    addNoteBtn.addEventListener('click', addNote);
-    noteInput.addEventListener('keypress', (e) => {
-        if (e.key === 'Enter') addNote();
-    });
+
+    if (saveDiaryBtn) {
+        saveDiaryBtn.addEventListener('click', () => {
+            console.log('Save diary button clicked');
+            saveDiary();
+        });
+    } else {
+        console.error('saveDiaryBtn not found!');
+    }
+
+    if (addNoteBtn) {
+        addNoteBtn.addEventListener('click', addNote);
+    }
+
+    if (noteInput) {
+        noteInput.addEventListener('keypress', (e) => {
+            if (e.key === 'Enter') addNote();
+        });
+    }
 }
 
 document.addEventListener('DOMContentLoaded', initApp);
