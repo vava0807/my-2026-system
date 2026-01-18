@@ -13,19 +13,20 @@ body {
 }
 
 .container {
-    max-width: 1400px;
-    margin: 0 auto;
+    width: 100%;
+    max-width: 100%;
+    margin: 0;
+    padding: 0 40px;
 }
 
 /* 主要布局：三欄設計 */
 .main-layout {
     display: grid;
-    grid-template-columns: 1fr 1fr;
+    grid-template-columns: 350px 1fr 380px;
     gap: 30px;
     padding: 20px;
     position: relative;
     z-index: 1;
-    /* 確保內容在背景之上 */
 }
 
 /* 左欄 */
@@ -305,14 +306,14 @@ body {
 
 /* 日記歷史區 */
 .history-section {
-    background: rgba(255, 255, 255, 0.8);
-    backdrop-filter: blur(10px);
+    background: rgba(255, 255, 255, 0.85);
+    backdrop-filter: blur(15px);
     padding: 30px;
     border-radius: 20px;
-    box-shadow: 0 8px 32px rgba(0, 0, 0, 0.1);
+    box-shadow: 0 8px 32px rgba(0, 0, 0, 0.15);
     border: 1px solid rgba(255, 255, 255, 0.3);
-    grid-column: 2;
-    max-height: 80vh;
+    grid-column: 3;
+    max-height: 75vh;
     overflow-y: auto;
 }
 
