@@ -1,4 +1,15 @@
 // 使用 LocalStorage 作為數據存儲
+// 全域錯誤防禦與儀表板
+window.onerror = function (msg, url, line, col, error) {
+    const debug = document.getElementById('debugInfo');
+    if (debug) {
+        debug.style.display = 'block';
+        debug.innerHTML += `<div>❌ 錯誤: ${msg} (${line}:${col})</div>`;
+    }
+    console.error("Critical Error:", msg, error);
+    return false;
+};
+
 // Three.js 3D 場景
 let scene, camera, renderer, controls;
 let petObjects = [];
@@ -57,8 +68,20 @@ let stats = {
 // 初始化 Three.js 3D 場景
 function initThreeJS() {
     const container = petContainer;
+    if (!container) {
+        console.error("找不到 petContainer 元素！");
+        return;
+    }
+
     const width = container.clientWidth;
     const height = container.clientHeight;
+
+    // 防禦性檢查：如果容器還沒有尺寸，可能佈局尚未完成，嘗試延遲初始化
+    if (width === 0 || height === 0) {
+        console.warn("偵測到容器尺寸為 0，將於 100ms 後重試初始化...");
+        setTimeout(initThreeJS, 100);
+        return;
+    }
 
     scene = new THREE.Scene();
 
@@ -1480,11 +1503,23 @@ function updateUI() {
 }
 
 function initApp() {
-    loadData();
-    initThreeJS();
+    try {
+        loadData();
+        initThreeJS();
 
-    if (pets.length === 0 && diaries.length === 0) {
-        console.log("當前網域資料為空，若您是從本地端切換至線上版，請使用『匯入還原』按鈕同步資料。");
+        // 如果是新用戶或本地切換，顯示提示
+        if (pets.length === 0 && diaries.length === 0) {
+            const debug = document.getElementById('debugInfo');
+            if (debug) {
+                debug.style.display = 'block';
+                debug.style.background = '#e3f2fd';
+                debug.style.borderColor = '#2196f3';
+                debug.style.color = '#0d47a1';
+                debug.innerHTML = "💡 偵測到當前網域資料為空。若您有備份檔，請使用下方的「匯入還原」按鈕。";
+            }
+        }
+    } catch (e) {
+        window.onerror(e.message, "app.js", 0, 0, e);
     }
 
     // 兼容舊資料與極致容錯：確保每個寵物都能載入
