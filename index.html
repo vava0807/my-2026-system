@@ -1,0 +1,116 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>🐾 寵物農場日記 🐾</title>
+    <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+    <div class="container">
+        <!-- 標題區 -->
+        <header class="header">
+            <h1>🐾 我的寵物農場日記 🐾</h1>
+            <p class="subtitle">每天寫日記，收集可愛的毛孩們！</p>
+        </header>
+
+        <!-- 寵物農場區 -->
+        <section class="pet-farm">
+            <h2>🏡 我的寵物農場</h2>
+            <div class="pet-stats">
+                <span class="stat-item">🐶 狗狗: <strong id="dogCount">0</strong></span>
+                <span class="stat-item">🐱 貓咪: <strong id="catCount">0</strong></span>
+                <span class="stat-item">📝 總日記: <strong id="totalDiaries">0</strong></span>
+            </div>
+            <div id="petContainer" class="pet-container">
+                <!-- 寵物會動態加入這裡 -->
+            </div>
+            <p class="warning-text" id="warningText" style="display: none;">
+                ⚠️ 已經 <span id="daysSinceLastEntry">0</span> 天沒寫日記了！再不寫會失去一隻寵物喔！
+            </p>
+        </section>
+
+        <!-- 日記記錄區 -->
+        <section class="diary-section">
+            <h2>✍️ 今日日記</h2>
+            <div class="diary-form">
+                <textarea 
+                    id="diaryContent" 
+                    placeholder="今天做了什麼有趣的事情呢？寫下來就能獲得一隻新寵物！🎉"
+                    rows="6"
+                ></textarea>
+                <button id="saveDiaryBtn" class="btn btn-primary">
+                    💾 儲存日記並獲得寵物
+                </button>
+            </div>
+        </section>
+
+        <!-- 臨時筆記區 -->
+        <section class="notes-section">
+            <h2>📌 臨時筆記</h2>
+            <div class="note-form">
+                <input 
+                    type="text" 
+                    id="noteInput" 
+                    placeholder="快速記錄臨時事項..."
+                />
+                <button id="addNoteBtn" class="btn btn-secondary">➕ 新增</button>
+            </div>
+            <ul id="notesList" class="notes-list">
+                <!-- 筆記會動態加入這裡 -->
+            </ul>
+        </section>
+
+        <!-- 日記歷史區 -->
+        <section class="history-section">
+            <h2>📖 日記歷史</h2>
+            <div id="diaryHistory" class="diary-history">
+                <!-- 歷史日記會動態加入這裡 -->
+            </div>
+        </section>
+    </div>
+
+    <!-- Firebase SDK -->
+    <script type="module">
+        // Import the functions you need from the SDKs you need
+        import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js';
+        import { getFirestore, collection, addDoc, getDocs, query, orderBy, deleteDoc, doc, updateDoc, setDoc, getDoc, where, limit } from 'https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js';
+
+        // 請替換成你的 Firebase 配置
+        const firebaseConfig = {
+            apiKey: "YOUR_API_KEY",
+            authDomain: "pet-farm-daily-journal.firebaseapp.com",
+            projectId: "pet-farm-daily-journal",
+            storageBucket: "pet-farm-daily-journal.appspot.com",
+            messagingSenderId: "YOUR_SENDER_ID",
+            appId: "YOUR_APP_ID"
+        };
+
+        // Initialize Firebase
+        const app = initializeApp(firebaseConfig);
+        const db = getFirestore(app);
+
+        // 將 db 和 firestore 函數暴露到全域
+        window.db = db;
+        window.firestoreFunctions = {
+            collection,
+            addDoc,
+            getDocs,
+            query,
+            orderBy,
+            deleteDoc,
+            doc,
+            updateDoc,
+            setDoc,
+            getDoc,
+            where,
+            limit
+        };
+
+        // 當 Firebase 初始化完成後，載入 app.js
+        const script = document.createElement('script');
+        script.src = 'app.js';
+        document.body.appendChild(script);
+    </script>
+</body>
+</html>
