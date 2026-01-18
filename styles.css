@@ -13,8 +13,24 @@ body {
 }
 
 .container {
-    max-width: 1000px;
+    max-width: 1400px;
     margin: 0 auto;
+}
+
+/* 主要布局：三欄設計 */
+.main-layout {
+    display: grid;
+    grid-template-columns: 300px 1fr 350px;
+    gap: 20px;
+    align-items: start;
+}
+
+/* 左欄 */
+.left-panel {
+    grid-column: 1;
+    display: flex;
+    flex-direction: column;
+    gap: 20px;
 }
 
 /* 標題區 */
@@ -39,14 +55,17 @@ body {
     font-size: 1.1em;
 }
 
-/* 寵物農場區 */
+/* 寵物農場區 - 中間最大 */
 .pet-farm {
     background: linear-gradient(135deg, #a8edea 0%, #fed6e3 100%);
     padding: 30px;
     border-radius: 20px;
     box-shadow: 0 8px 20px rgba(0, 0, 0, 0.1);
-    margin-bottom: 30px;
     border: 4px dashed #ff6b6b;
+    grid-column: 2;
+    min-height: 600px;
+    display: flex;
+    flex-direction: column;
 }
 
 .pet-farm h2 {
@@ -79,7 +98,8 @@ body {
 
 .pet-container {
     background: rgba(255, 255, 255, 0.5);
-    min-height: 150px;
+    min-height: 300px;
+    flex: 1;
     padding: 20px;
     border-radius: 15px;
     display: flex;
@@ -121,13 +141,12 @@ body {
     padding: 30px;
     border-radius: 20px;
     box-shadow: 0 8px 20px rgba(0, 0, 0, 0.1);
-    margin-bottom: 30px;
 }
 
 .diary-section h2 {
     color: #4ecdc4;
     margin-bottom: 20px;
-    font-size: 1.8em;
+    font-size: 1.5em;
 }
 
 .diary-form textarea {
@@ -135,10 +154,11 @@ body {
     padding: 15px;
     border: 2px solid #e0e0e0;
     border-radius: 10px;
-    font-size: 1em;
+    font-size: 0.95em;
     font-family: inherit;
     resize: vertical;
     transition: border-color 0.3s;
+    min-height: 80px;
 }
 
 .diary-form textarea:focus {
@@ -152,13 +172,12 @@ body {
     padding: 30px;
     border-radius: 20px;
     box-shadow: 0 8px 20px rgba(0, 0, 0, 0.1);
-    margin-bottom: 30px;
 }
 
 .notes-section h2 {
     color: #ffa502;
     margin-bottom: 20px;
-    font-size: 1.8em;
+    font-size: 1.5em;
 }
 
 .note-form {
@@ -261,12 +280,14 @@ body {
     padding: 30px;
     border-radius: 20px;
     box-shadow: 0 8px 20px rgba(0, 0, 0, 0.1);
+    grid-column: 3;
+    min-height: 600px;
 }
 
 .history-section h2 {
     color: #ee5a6f;
     margin-bottom: 20px;
-    font-size: 1.8em;
+    font-size: 1.5em;
 }
 
 .diary-history {
@@ -305,6 +326,20 @@ body {
 }
 
 /* 響應式設計 */
+@media (max-width: 1200px) {
+    .main-layout {
+        grid-template-columns: 1fr;
+    }
+    
+    .pet-farm {
+        grid-column: 1;
+    }
+    
+    .history-section {
+        grid-column: 1;
+    }
+}
+
 @media (max-width: 768px) {
     .header h1 {
         font-size: 1.8em;
@@ -321,6 +356,10 @@ body {
     
     .note-form {
         flex-direction: column;
+    }
+    
+    .main-layout {
+        grid-template-columns: 1fr;
     }
 }
 
