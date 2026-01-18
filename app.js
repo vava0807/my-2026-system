@@ -17,9 +17,17 @@ const totalNotes = document.getElementById('totalNotes');
 const diaryHistory = document.getElementById('diaryHistory');
 const warningText = document.getElementById('warningText');
 
-// 寵物類型
-const PET_TYPES = ['dog', 'cat'];
-const PET_EMOJI = { dog: '🐶', cat: '🐱' };
+// 寵物類型與品種
+const PET_BREEDS = {
+    dog: ['shiba', 'corgi'],
+    cat: ['munchkin']
+};
+const PET_EMOJI = { dog: '🐶', cat: '🐱', shiba: '🐕', corgi: '🦊', munchkin: '🐈' };
+const BREED_NAMES = {
+    shiba: '柴犬',
+    corgi: '柯基',
+    munchkin: '短腿貓'
+};
 
 // 應用狀態
 let pets = [];
@@ -147,66 +155,76 @@ function initThreeJS() {
     });
 }
 
-// 寵物模型設計 - 參考畫風
-function createPetModel(type) {
+// 寵物模型設計 - 詳細品種版
+function createPetModel(breed) {
     const group = new THREE.Group();
     const legs = [];
     let tail = null;
     let tongue = null;
 
     const whiteMat = new THREE.MeshPhongMaterial({ color: 0xffffff });
-    const orangeMat = new THREE.MeshPhongMaterial({ color: 0xFFA500 });
+    const orangeMat = new THREE.MeshPhongMaterial({ color: 0xFFA500 }); // 橘色/赤色
+    const shibaMat = new THREE.MeshPhongMaterial({ color: 0xD2691E }); // 柴犬赤色
     const pinkMat = new THREE.MeshBasicMaterial({ color: 0xFF69B4 });
     const blackMat = new THREE.MeshBasicMaterial({ color: 0x000000 });
 
-    if (type === 'dog') {
-        // 身體 (圓柱形/膠囊形)
-        const body = new THREE.Mesh(new THREE.SphereGeometry(7, 32, 16), whiteMat);
-        body.scale.set(1.3, 0.9, 0.9);
+    if (breed === 'shiba') {
+        // --- 柴犬 ---
+        // 身體
+        const body = new THREE.Mesh(new THREE.SphereGeometry(7, 32, 16), shibaMat);
+        body.scale.set(1.2, 0.9, 0.9);
         body.position.y = 10;
         group.add(body);
 
+        // 裏白 (白色肚皮)
+        const belly = new THREE.Mesh(new THREE.SphereGeometry(6.5, 32, 16), whiteMat);
+        belly.scale.set(1.1, 0.5, 0.8);
+        belly.position.y = 7;
+        group.add(belly);
+
         // 頭
-        const head = new THREE.Mesh(new THREE.SphereGeometry(6, 32, 16), whiteMat);
-        head.position.set(10, 14, 0);
+        const head = new THREE.Mesh(new THREE.SphereGeometry(5.5, 32, 16), shibaMat);
+        head.position.set(8, 14, 0);
         group.add(head);
 
-        // 橘色斑點 (一隻眼睛上)
-        const spot = new THREE.Mesh(new THREE.SphereGeometry(3, 16, 16), orangeMat);
-        spot.scale.set(1, 1, 0.5);
-        spot.position.set(13.5, 15, 2);
-        group.add(spot);
+        // 裏白 (臉部白色)
+        const snout = new THREE.Mesh(new THREE.SphereGeometry(3.5, 32, 16), whiteMat);
+        snout.scale.set(1.1, 0.8, 1);
+        snout.position.set(10, 13, 0);
+        group.add(snout);
+
+        // 眼睛
+        const eye1 = new THREE.Mesh(new THREE.SphereGeometry(0.5, 16, 16), blackMat);
+        eye1.position.set(12, 15, 2);
+        group.add(eye1);
+        const eye2 = new THREE.Mesh(new THREE.SphereGeometry(0.5, 16, 16), blackMat);
+        eye2.position.set(12, 15, -2);
+        group.add(eye2);
 
         // 鼻子
-        const nose = new THREE.Mesh(new THREE.SphereGeometry(1, 16, 16), blackMat);
-        nose.position.set(15.5, 14, 0);
+        const nose = new THREE.Mesh(new THREE.SphereGeometry(0.7, 16, 16), blackMat);
+        nose.position.set(13.5, 14, 0);
         group.add(nose);
 
-        // 舌頭
-        tongue = new THREE.Mesh(new THREE.BoxGeometry(2, 0.3, 3), pinkMat);
-        tongue.position.set(14.5, 12, 0);
-        group.add(tongue);
-
-        // 下垂的耳朵 (Floppy Ears)
-        const earGeom = new THREE.BoxGeometry(1, 6, 4);
-        const ear1 = new THREE.Mesh(earGeom, whiteMat);
-        ear1.position.set(10, 18, 5);
-        ear1.rotation.x = 0.3;
+        // 尖耳朵
+        const ear1 = new THREE.Mesh(new THREE.ConeGeometry(2, 4, 4), shibaMat);
+        ear1.position.set(8, 19, 2.5);
         group.add(ear1);
-        const ear2 = new THREE.Mesh(earGeom, whiteMat);
-        ear2.position.set(10, 18, -5);
-        ear2.rotation.x = -0.3;
+        const ear2 = new THREE.Mesh(new THREE.ConeGeometry(2, 4, 4), shibaMat);
+        ear2.position.set(8, 19, -2.5);
         group.add(ear2);
 
-        // 尾巴
-        tail = new THREE.Mesh(new THREE.CylinderGeometry(1, 0.5, 12, 8), whiteMat);
-        tail.position.set(-10, 15, 0);
-        tail.rotation.z = -0.5;
+        // 捲捲尾巴 (柴犬特色)
+        tail = new THREE.Group();
+        const tailMesh = new THREE.Mesh(new THREE.TorusGeometry(3, 1.5, 16, 32, Math.PI * 1.5), shibaMat);
+        tailMesh.rotation.y = Math.PI / 2;
+        tail.add(tailMesh);
+        tail.position.set(-8, 14, 0);
         group.add(tail);
 
         // 腿
-        const legGeom = new THREE.CylinderGeometry(1.5, 1, 8, 16);
-        const legPos = [{ x: 6, z: 4 }, { x: 6, z: -4 }, { x: -6, z: 4 }, { x: -6, z: -4 }];
+        const legGeom = new THREE.CylinderGeometry(1.2, 1, 8, 16);
+        const legPos = [{ x: 5, z: 4 }, { x: 5, z: -4 }, { x: -5, z: 4 }, { x: -5, z: -4 }];
         legPos.forEach(p => {
             const leg = new THREE.Mesh(legGeom, whiteMat);
             leg.position.set(p.x, 4, p.z);
@@ -214,49 +232,113 @@ function createPetModel(type) {
             legs.push(leg);
         });
 
-    } else {
-        // 貓咪
-        const catBody = new THREE.Mesh(new THREE.SphereGeometry(6, 32, 16), orangeMat);
-        catBody.scale.set(1.1, 1, 1);
-        catBody.position.y = 10;
-        group.add(catBody);
+    } else if (breed === 'corgi') {
+        // --- 柯基 ---
+        // 長身體
+        const body = new THREE.Mesh(new THREE.SphereGeometry(7, 32, 16), orangeMat);
+        body.scale.set(1.5, 0.8, 0.8);
+        body.position.y = 8;
+        group.add(body);
 
-        const catHead = new THREE.Mesh(new THREE.SphereGeometry(5, 32, 16), orangeMat);
-        catHead.position.set(6, 15, 0);
-        group.add(catHead);
+        // 白色圍巾/肚皮
+        const neck = new THREE.Mesh(new THREE.SphereGeometry(6, 32, 16), whiteMat);
+        neck.scale.set(0.6, 0.9, 0.9);
+        neck.position.set(5, 8, 0);
+        group.add(neck);
 
-        // 尖耳朵
-        const ear1 = new THREE.Mesh(new THREE.ConeGeometry(2, 5, 4), orangeMat);
-        ear1.position.set(6, 20, 3);
+        // 頭
+        const head = new THREE.Mesh(new THREE.SphereGeometry(5.5, 32, 16), orangeMat);
+        head.position.set(10, 12, 0);
+        group.add(head);
+
+        // 白色面帶
+        const muzzle = new THREE.Mesh(new THREE.SphereGeometry(3, 32, 16), whiteMat);
+        muzzle.position.set(12.5, 11, 0);
+        group.add(muzzle);
+
+        // 眼睛
+        const eye1 = new THREE.Mesh(new THREE.SphereGeometry(0.5, 16, 16), blackMat);
+        eye1.position.set(14, 13, 2);
+        group.add(eye1);
+        const eye2 = new THREE.Mesh(new THREE.SphereGeometry(0.5, 16, 16), blackMat);
+        eye2.position.set(14, 13, -2);
+        group.add(eye2);
+
+        // 大耳朵
+        const ear1 = new THREE.Mesh(new THREE.BoxGeometry(1, 6, 4), orangeMat);
+        ear1.position.set(10, 16, 3.5);
+        ear1.rotation.z = -0.2;
         group.add(ear1);
-        const ear2 = new THREE.Mesh(new THREE.ConeGeometry(2, 5, 4), orangeMat);
-        ear2.position.set(6, 20, -3);
+        const ear2 = new THREE.Mesh(new THREE.BoxGeometry(1, 6, 4), orangeMat);
+        ear2.position.set(10, 16, -3.5);
+        ear2.rotation.z = -0.2;
         group.add(ear2);
 
-        // 長尾巴
-        tail = new THREE.Mesh(new THREE.CylinderGeometry(1, 0.5, 15, 8), orangeMat);
-        tail.position.set(-8, 15, 0);
-        tail.rotation.z = -0.8;
-        group.add(tail);
+        // 舌頭
+        tongue = new THREE.Mesh(new THREE.BoxGeometry(2, 0.3, 3), pinkMat);
+        tongue.position.set(14, 10, 0);
+        group.add(tongue);
 
-        const legGeom = new THREE.CylinderGeometry(1.2, 1.2, 9, 16);
-        const legPos = [{ x: 4, z: 3 }, { x: 4, z: -3 }, { x: -4, z: 3 }, { x: -4, z: -3 }];
+        // 短短白腿
+        const legGeom = new THREE.CylinderGeometry(1.5, 1.2, 5, 16);
+        const legPos = [{ x: 6, z: 4 }, { x: 6, z: -4 }, { x: -7, z: 4 }, { x: -7, z: -4 }];
         legPos.forEach(p => {
-            const leg = new THREE.Mesh(legGeom, orangeMat);
-            leg.position.set(p.x, 4.5, p.z);
+            const leg = new THREE.Mesh(legGeom, whiteMat);
+            leg.position.set(p.x, 2.5, p.z);
             group.add(leg);
             legs.push(leg);
         });
-    }
 
-    // 眼睛
-    const eyeGeom = new THREE.SphereGeometry(0.6, 16, 16);
-    const eye1 = new THREE.Mesh(eyeGeom, blackMat);
-    eye1.position.set(type === 'dog' ? 15 : 10, 16, 2.5);
-    group.add(eye1);
-    const eye2 = new THREE.Mesh(eyeGeom, blackMat);
-    eye2.position.set(type === 'dog' ? 15 : 10, 16, -2.5);
-    group.add(eye2);
+        // 屁股 (柯基特有的圓屁股)
+        const butt = new THREE.Mesh(new THREE.SphereGeometry(5, 16, 16), orangeMat);
+        butt.position.set(-8, 8, 0);
+        group.add(butt);
+
+    } else if (breed === 'munchkin') {
+        // --- 短腿貓 ---
+        // 身體 (修長一些)
+        const body = new THREE.Mesh(new THREE.SphereGeometry(6, 32, 16), orangeMat);
+        body.scale.set(1.3, 0.8, 0.8);
+        body.position.y = 8;
+        group.add(body);
+
+        // 頭
+        const head = new THREE.Mesh(new THREE.SphereGeometry(5, 32, 16), orangeMat);
+        head.position.set(7, 12, 0);
+        group.add(head);
+
+        // 貓耳
+        const ear1 = new THREE.Mesh(new THREE.ConeGeometry(1.5, 4, 4), orangeMat);
+        ear1.position.set(7, 16, 2.5);
+        group.add(ear1);
+        const ear2 = new THREE.Mesh(earGeom = new THREE.ConeGeometry(1.5, 4, 4), orangeMat);
+        ear2.position.set(7, 16, -2.5);
+        group.add(ear2);
+
+        // 眼睛
+        const eye1 = new THREE.Mesh(new THREE.SphereGeometry(0.5, 16, 16), blackMat);
+        eye1.position.set(11, 13, 2);
+        group.add(eye1);
+        const eye2 = new THREE.Mesh(new THREE.SphereGeometry(0.5, 16, 16), blackMat);
+        eye2.position.set(11, 13, -2);
+        group.add(eye2);
+
+        // 極短腿 (短腿貓特色)
+        const legGeom = new THREE.CylinderGeometry(1, 1, 4, 16);
+        const legPos = [{ x: 4, z: 3 }, { x: 4, z: -3 }, { x: -4, z: 3 }, { x: -4, z: -3 }];
+        legPos.forEach(p => {
+            const leg = new THREE.Mesh(legGeom, orangeMat);
+            leg.position.set(p.x, 2, p.z);
+            group.add(leg);
+            legs.push(leg);
+        });
+
+        // 長尾巴
+        tail = new THREE.Mesh(new THREE.CylinderGeometry(1, 0.5, 15, 8), orangeMat);
+        tail.position.set(-8, 12, 0);
+        tail.rotation.z = -0.5;
+        group.add(tail);
+    }
 
     return { group, legs, tail, tongue };
 }
@@ -304,23 +386,30 @@ function saveAllData() {
 }
 
 function addPet(forcedType = null) {
-    const petType = forcedType || PET_TYPES[Math.floor(Math.random() * PET_TYPES.length)];
+    const type = forcedType || ['dog', 'cat'][Math.floor(Math.random() * 2)];
+    const breeds = PET_BREEDS[type];
+    const breed = breeds[Math.floor(Math.random() * breeds.length)];
+
     const newPet = {
         id: Date.now().toString(),
-        type: petType,
+        type: type,
+        breed: breed,
         addedAt: new Date().toISOString()
     };
     pets.push(newPet);
-    if (petType === 'dog') stats.dogs++;
+    if (type === 'dog') stats.dogs++;
     else stats.cats++;
 
-    add3DPet(petType);
+    add3DPet(breed);
     saveAllData();
     updateUI();
+
+    const emoji = PET_EMOJI[breed] || PET_EMOJI[type];
+    alert(`🎉 恭喜獲得 ${BREED_NAMES[breed]} ${emoji}！`);
 }
 
-function add3DPet(petType) {
-    const { group, legs, tail, tongue } = createPetModel(petType);
+function add3DPet(breed) {
+    const { group, legs, tail, tongue } = createPetModel(breed);
     let r = Math.random() * 200;
     let theta = Math.random() * Math.PI * 2;
     group.position.set(Math.cos(theta) * r, 0, Math.sin(theta) * r);
@@ -332,7 +421,7 @@ function add3DPet(petType) {
         legs: legs,
         tail: tail,
         tongue: tongue,
-        type: petType,
+        breed: breed,
         walking: true,
         velocityX: (Math.random() - 0.5) * 1.0,
         velocityZ: (Math.random() - 0.5) * 1.0
@@ -346,16 +435,19 @@ function saveDiary() {
     const content = diaryContent.value.trim();
     if (!content) { alert('請輸入內容'); return; }
 
-    const petType = PET_TYPES[Math.floor(Math.random() * PET_TYPES.length)];
+    const type = ['dog', 'cat'][Math.floor(Math.random() * 2)];
+    const breeds = PET_BREEDS[type];
+    const breed = breeds[Math.floor(Math.random() * breeds.length)];
+
     diaries.unshift({
         id: Date.now().toString(),
         content: content,
         createdAt: new Date().toISOString(),
-        petReward: petType
+        petReward: breed
     });
 
     stats.totalDiaries++;
-    addPet(petType);
+    addPet(type); // 這裡會自動選品種
     diaryContent.value = '';
     saveAllData();
     updateUI();
@@ -418,7 +510,8 @@ function updateUI() {
 function initApp() {
     loadData();
     initThreeJS();
-    pets.forEach(p => add3DPet(p.type));
+    // 兼容舊資料，如果沒有 breed 則使用 type
+    pets.forEach(p => add3DPet(p.breed || p.type || 'shiba'));
     updateUI();
 
     saveDiaryBtn.addEventListener('click', saveDiary);
