@@ -572,11 +572,43 @@ function saveDiary() {
 }
 
 function deleteDiary(id) {
-    if (!confirm('確定刪除？')) return;
+    if (!confirm('確定刪除？此日記對應的寵物也會消失喔！')) return;
+
+    // 找到對應的日記，確認獎勵類型
+    const entry = diaries.find(d => d.id === id);
+    if (entry) {
+        removePet(entry.petReward);
+    }
+
     diaries = diaries.filter(d => d.id !== id);
     stats.totalDiaries = diaries.length;
     saveAllData();
     updateUI();
+}
+
+function removePet(breed) {
+    // 從後往前找，刪除最新的一隻
+    for (let i = pets.length - 1; i >= 0; i--) {
+        if (pets[i].breed === breed || pets[i].type === breed) {
+            const petId = pets[i].id;
+            // 1. 從 pets 陣列移除
+            pets.splice(i, 1);
+
+            // 2. 從 3D 場景移除
+            const objIndex = petObjects.findIndex(obj => obj.id === petId || (obj.breed === breed && obj.walking));
+            if (objIndex !== -1) {
+                scene.remove(petObjects[objIndex].mesh);
+                petObjects.splice(objIndex, 1);
+            }
+
+            // 3. 更新統計
+            const type = breed === 'munchkin' ? 'cat' : 'dog';
+            if (type === 'dog') stats.dogs = Math.max(0, stats.dogs - 1);
+            else stats.cats = Math.max(0, stats.cats - 1);
+
+            break;
+        }
+    }
 }
 
 function addNote() {
