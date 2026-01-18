@@ -1,7 +1,6 @@
 // 使用 LocalStorage 作為數據存儲
-
 // Three.js 3D 場景
-let scene, camera, renderer;
+let scene, camera, renderer, controls;
 let petObjects = [];
 
 // DOM 元素
@@ -17,7 +16,6 @@ const totalDiaries = document.getElementById('totalDiaries');
 const totalNotes = document.getElementById('totalNotes');
 const diaryHistory = document.getElementById('diaryHistory');
 const warningText = document.getElementById('warningText');
-const daysSinceLastEntry = document.getElementById('daysSinceLastEntry');
 
 // 寵物類型
 const PET_TYPES = ['dog', 'cat'];
@@ -41,79 +39,99 @@ function initThreeJS() {
     const height = container.clientHeight;
 
     scene = new THREE.Scene();
-    // 移除 scene.background 讓 CSS 背景透出來
-    // scene.background = new THREE.Color(0x87CEEB);
-    // scene.fog = new THREE.Fog(0x87CEEB, 1000, 10);
 
-    camera = new THREE.PerspectiveCamera(75, width / height, 0.1, 1000);
-    camera.position.z = 100; // 稍微退後一點，確保看到更多寵物
+    // 相機
+    camera = new THREE.PerspectiveCamera(60, width / height, 0.1, 2000);
+    camera.position.set(150, 200, 250);
 
-    renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true }); // 開啟 alpha 讓背景透明
+    // 渲染器
+    renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true });
     renderer.setSize(width, height);
     renderer.setPixelRatio(window.devicePixelRatio);
-    renderer.domElement.id = 'threeCanvas'; // 設定 ID 以套用 CSS
+    renderer.domElement.id = 'threeCanvas';
     container.innerHTML = '';
     container.appendChild(renderer.domElement);
 
-    // 地面
-    const groundGeometry = new THREE.PlaneGeometry(200, 100);
-    const groundMaterial = new THREE.MeshLambertMaterial({ color: 0x90EE90 });
+    // OrbitControls - 3D 滑鼠拖拽
+    if (typeof THREE.OrbitControls !== 'undefined') {
+        controls = new THREE.OrbitControls(camera, renderer.domElement);
+        controls.enableDamping = true;
+        controls.dampingFactor = 0.05;
+        controls.maxPolarAngle = Math.PI / 2.1;
+    }
+
+    // 地面 - 圓形草地
+    const groundGeometry = new THREE.CircleGeometry(400, 64);
+    const groundMaterial = new THREE.MeshLambertMaterial({ color: 0x90EE90, transparent: true, opacity: 0.8 });
     const ground = new THREE.Mesh(groundGeometry, groundMaterial);
-    ground.position.z = -50;
+    ground.rotation.x = -Math.PI / 2;
     scene.add(ground);
 
-    // 光源 - 增加強度和陰影感
-    const ambientLight = new THREE.AmbientLight(0xffffff, 0.9);
+    // 光源
+    const ambientLight = new THREE.AmbientLight(0xffffff, 0.8);
     scene.add(ambientLight);
 
-    const directionalLight = new THREE.DirectionalLight(0xffffff, 1.0);
-    directionalLight.position.set(50, 100, 50);
+    const directionalLight = new THREE.DirectionalLight(0xffffff, 0.8);
+    directionalLight.position.set(100, 200, 100);
     scene.add(directionalLight);
 
-    // 裝飾場景：增加一些小樹
+    // 裝飾場景：小樹
     for (let i = 0; i < 15; i++) {
         createTree();
     }
 
+    // 動畫循環
     function animate() {
         requestAnimationFrame(animate);
         const time = Date.now() * 0.005;
 
+        if (controls) controls.update();
+
         petObjects.forEach(petObj => {
             if (petObj.walking) {
-                // 移動位置
+                // 移動 (XZ 平面)
                 petObj.mesh.position.x += petObj.velocityX;
-                petObj.mesh.position.y += petObj.velocityY;
+                petObj.mesh.position.z += petObj.velocityZ;
 
-                // 邊界檢查與轉向
-                if (Math.abs(petObj.mesh.position.x) > 150) {
+                // 邊界檢查
+                const dist = Math.sqrt(petObj.mesh.position.x ** 2 + petObj.mesh.position.z ** 2);
+                if (dist > 350) {
                     petObj.velocityX *= -1;
-                    updatePetRotation(petObj);
-                }
-                if (Math.abs(petObj.mesh.position.y) > 80) {
-                    petObj.velocityY *= -1;
+                    petObj.velocityZ *= -1;
                     updatePetRotation(petObj);
                 }
 
                 // 隨機轉向
                 if (Math.random() < 0.01) {
-                    petObj.velocityX = (Math.random() - 0.5) * 0.6;
-                    petObj.velocityY = (Math.random() - 0.5) * 0.6;
+                    petObj.velocityX = (Math.random() - 0.5) * 1.0;
+                    petObj.velocityZ = (Math.random() - 0.5) * 1.0;
                     updatePetRotation(petObj);
                 }
 
-                // 走路動畫：腳擺動 + 身體上下跳動
-                const walkSpeed = 5;
-                const swing = Math.sin(time * walkSpeed) * 0.5;
+                // 彈跳動畫
+                const walkSpeed = 6;
+                const bounce = Math.abs(Math.sin(time * walkSpeed)) * 5;
+                petObj.mesh.position.y = bounce;
 
-                petObj.legs.forEach((leg, index) => {
-                    // 對角線的腳同步
-                    const offset = (index === 0 || index === 3) ? 1 : -1;
-                    leg.rotation.x = swing * offset;
+                // 腳跟著動
+                petObj.legs.forEach((leg, i) => {
+                    const offset = (i === 0 || i === 3) ? 1 : -1;
+                    leg.rotation.x = Math.sin(time * walkSpeed) * 0.6 * offset;
                 });
 
-                // 身體上下輕微跳動
-                petObj.mesh.position.z = Math.abs(Math.sin(time * walkSpeed)) * 2;
+                // 尾巴搖擺
+                if (petObj.tail) {
+                    petObj.tail.rotation.y = Math.sin(time * 12) * 0.8;
+                }
+
+                // 舌頭伸縮
+                if (petObj.tongue) {
+                    petObj.tongue.scale.z = 0.5 + Math.abs(Math.sin(time * 15)) * 1.5;
+                }
+
+                // 呼吸縮放
+                const s = 1 + Math.sin(time * 3) * 0.03;
+                petObj.mesh.scale.set(s, s, s);
             }
         });
 
@@ -123,194 +141,149 @@ function initThreeJS() {
     animate();
 
     window.addEventListener('resize', () => {
-        const newWidth = container.clientWidth;
-        const newHeight = container.clientHeight;
-        camera.aspect = newWidth / newHeight;
+        camera.aspect = container.clientWidth / container.clientHeight;
         camera.updateProjectionMatrix();
-        renderer.setSize(newWidth, newHeight);
+        renderer.setSize(container.clientWidth, container.clientHeight);
     });
 }
 
-// 更新寵物朝向
-function updatePetRotation(petObj) {
-    const angle = Math.atan2(petObj.velocityY, petObj.velocityX);
-    // Three.js 預設朝向是 X 軸，我們需要旋轉使其符合移動方向
-    petObj.mesh.rotation.z = angle;
-    petObj.mesh.rotation.x = Math.PI / 2; // 站立，而不是趴在地面
-}
-
-// 建立裝飾用的樹
-function createTree() {
-    const group = new THREE.Group();
-
-    // 樹幹
-    const trunkGeom = new THREE.CylinderGeometry(2, 2, 8, 8);
-    const trunkMat = new THREE.MeshLambertMaterial({ color: 0x8B4513 });
-    const trunk = new THREE.Mesh(trunkGeom, trunkMat);
-    trunk.rotation.x = Math.PI / 2;
-    group.add(trunk);
-
-    // 樹冠
-    const leavesGeom = new THREE.ConeGeometry(8, 16, 8);
-    const leavesMat = new THREE.MeshLambertMaterial({ color: 0x228B22 });
-    const leaves = new THREE.Mesh(leavesGeom, leavesMat);
-    leaves.position.y = 8;
-    leaves.rotation.x = Math.PI / 2;
-    group.add(leaves);
-
-    group.position.x = (Math.random() - 0.5) * 300;
-    group.position.y = (Math.random() - 0.5) * 200;
-    group.position.z = -5;
-
-    scene.add(group);
-}
-
-// 建立 3D 寵物模型
+// 寵物模型設計 - 參考畫風
 function createPetModel(type) {
     const group = new THREE.Group();
     const legs = [];
+    let tail = null;
+    let tongue = null;
+
+    const whiteMat = new THREE.MeshPhongMaterial({ color: 0xffffff });
+    const orangeMat = new THREE.MeshPhongMaterial({ color: 0xFFA500 });
+    const pinkMat = new THREE.MeshBasicMaterial({ color: 0xFF69B4 });
+    const blackMat = new THREE.MeshBasicMaterial({ color: 0x000000 });
 
     if (type === 'dog') {
-        // --- 柯基犬 (Corgi) 設計 ---
-        const bodyMat = new THREE.MeshPhongMaterial({ color: 0xD2691E }); // 柯基橘
-        const whiteMat = new THREE.MeshPhongMaterial({ color: 0xFFFFFF }); // 柯基白
-
-        // 長身體 (柯基特色)
-        const bodyGeom = new THREE.BoxGeometry(16, 9, 9);
-        const body = new THREE.Mesh(bodyGeom, bodyMat);
-        body.position.z = 5;
+        // 身體 (圓柱形/膠囊形)
+        const body = new THREE.Mesh(new THREE.SphereGeometry(7, 32, 16), whiteMat);
+        body.scale.set(1.3, 0.9, 0.9);
+        body.position.y = 10;
         group.add(body);
 
-        // 白色肚皮
-        const bellyGeom = new THREE.BoxGeometry(16.2, 5, 5);
-        const belly = new THREE.Mesh(bellyGeom, whiteMat);
-        belly.position.set(0, 0, 3.5);
-        group.add(belly);
-
-        // 頭部
-        const headGeom = new THREE.BoxGeometry(8, 8, 8);
-        const head = new THREE.Mesh(headGeom, bodyMat);
-        head.position.set(10, 0, 9);
+        // 頭
+        const head = new THREE.Mesh(new THREE.SphereGeometry(6, 32, 16), whiteMat);
+        head.position.set(10, 14, 0);
         group.add(head);
 
-        // 白色面袋 (臉部中心白色區域)
-        const snoutGeom = new THREE.BoxGeometry(4, 5, 4);
-        const snout = new THREE.Mesh(snoutGeom, whiteMat);
-        snout.position.set(13, 0, 8);
-        group.add(snout);
+        // 橘色斑點 (一隻眼睛上)
+        const spot = new THREE.Mesh(new THREE.SphereGeometry(3, 16, 16), orangeMat);
+        spot.scale.set(1, 1, 0.5);
+        spot.position.set(13.5, 15, 2);
+        group.add(spot);
 
-        // 黑色小鼻子
-        const noseGeom = new THREE.BoxGeometry(1.5, 2, 1.5);
-        const noseMat = new THREE.MeshBasicMaterial({ color: 0x000000 });
-        const nose = new THREE.Mesh(noseGeom, noseMat);
-        nose.position.set(15.5, 0, 8.5);
+        // 鼻子
+        const nose = new THREE.Mesh(new THREE.SphereGeometry(1, 16, 16), blackMat);
+        nose.position.set(15.5, 14, 0);
         group.add(nose);
 
-        // 大尖耳朵 (柯基特色)
-        const earGeom = new THREE.BoxGeometry(2, 5, 7);
-        const ear1 = new THREE.Mesh(earGeom, bodyMat);
-        ear1.position.set(10, 3, 13);
+        // 舌頭
+        tongue = new THREE.Mesh(new THREE.BoxGeometry(2, 0.3, 3), pinkMat);
+        tongue.position.set(14.5, 12, 0);
+        group.add(tongue);
+
+        // 下垂的耳朵 (Floppy Ears)
+        const earGeom = new THREE.BoxGeometry(1, 6, 4);
+        const ear1 = new THREE.Mesh(earGeom, whiteMat);
+        ear1.position.set(10, 18, 5);
+        ear1.rotation.x = 0.3;
         group.add(ear1);
-        const ear2 = new THREE.Mesh(earGeom, bodyMat);
-        ear2.position.set(10, -3, 13);
+        const ear2 = new THREE.Mesh(earGeom, whiteMat);
+        ear2.position.set(10, 18, -5);
+        ear2.rotation.x = -0.3;
         group.add(ear2);
 
-        // 四條短腿 (柯基特色)
-        const legGeom = new THREE.BoxGeometry(3, 3, 4);
-        const legPositions = [
-            { x: 5, y: 3.5 }, { x: 5, y: -3.5 },
-            { x: -5, y: 3.5 }, { x: -5, y: -3.5 }
-        ];
+        // 尾巴
+        tail = new THREE.Mesh(new THREE.CylinderGeometry(1, 0.5, 12, 8), whiteMat);
+        tail.position.set(-10, 15, 0);
+        tail.rotation.z = -0.5;
+        group.add(tail);
 
-        legPositions.forEach(pos => {
-            const leg = new THREE.Mesh(legGeom, whiteMat); // 白短腿
-            leg.position.set(pos.x, pos.y, 2);
+        // 腿
+        const legGeom = new THREE.CylinderGeometry(1.5, 1, 8, 16);
+        const legPos = [{ x: 6, z: 4 }, { x: 6, z: -4 }, { x: -6, z: 4 }, { x: -6, z: -4 }];
+        legPos.forEach(p => {
+            const leg = new THREE.Mesh(legGeom, whiteMat);
+            leg.position.set(p.x, 4, p.z);
             group.add(leg);
             legs.push(leg);
         });
 
     } else {
-        // --- 貓咪 (Cat) 設計 ---
-        const catMat = new THREE.MeshPhongMaterial({ color: 0xFFA500 }); // 橘貓
+        // 貓咪
+        const catBody = new THREE.Mesh(new THREE.SphereGeometry(6, 32, 16), orangeMat);
+        catBody.scale.set(1.1, 1, 1);
+        catBody.position.y = 10;
+        group.add(catBody);
 
-        // 身體
-        const bodyGeom = new THREE.BoxGeometry(10, 7, 7);
-        const body = new THREE.Mesh(bodyGeom, catMat);
-        body.position.z = 6;
-        group.add(body);
+        const catHead = new THREE.Mesh(new THREE.SphereGeometry(5, 32, 16), orangeMat);
+        catHead.position.set(6, 15, 0);
+        group.add(catHead);
 
-        // 頭部
-        const headGeom = new THREE.BoxGeometry(7, 7, 7);
-        const head = new THREE.Mesh(headGeom, catMat);
-        head.position.set(7, 0, 10);
-        group.add(head);
-
-        // 貓耳朵 (尖尖的)
-        const earGeom = new THREE.BoxGeometry(2, 3, 4);
-        const ear1 = new THREE.Mesh(earGeom, catMat);
-        ear1.position.set(7, 2, 14);
+        // 尖耳朵
+        const ear1 = new THREE.Mesh(new THREE.ConeGeometry(2, 5, 4), orangeMat);
+        ear1.position.set(6, 20, 3);
         group.add(ear1);
-        const ear2 = new THREE.Mesh(earGeom, catMat);
-        ear2.position.set(7, -2, 14);
+        const ear2 = new THREE.Mesh(new THREE.ConeGeometry(2, 5, 4), orangeMat);
+        ear2.position.set(6, 20, -3);
         group.add(ear2);
 
-        // 貓尾巴
-        const tailGeom = new THREE.BoxGeometry(2, 2, 8);
-        const tail = new THREE.Mesh(tailGeom, catMat);
-        tail.position.set(-8, 0, 8);
-        tail.rotation.y = 0.5;
+        // 長尾巴
+        tail = new THREE.Mesh(new THREE.CylinderGeometry(1, 0.5, 15, 8), orangeMat);
+        tail.position.set(-8, 15, 0);
+        tail.rotation.z = -0.8;
         group.add(tail);
 
-        // 腿部
-        const legGeom = new THREE.BoxGeometry(2, 2, 6);
-        const legPositions = [
-            { x: 3, y: 2.5 }, { x: 3, y: -2.5 },
-            { x: -3, y: 2.5 }, { x: -3, y: -2.5 }
-        ];
-
-        legPositions.forEach(pos => {
-            const leg = new THREE.Mesh(legGeom, catMat);
-            leg.position.set(pos.x, pos.y, 3);
+        const legGeom = new THREE.CylinderGeometry(1.2, 1.2, 9, 16);
+        const legPos = [{ x: 4, z: 3 }, { x: 4, z: -3 }, { x: -4, z: 3 }, { x: -4, z: -3 }];
+        legPos.forEach(p => {
+            const leg = new THREE.Mesh(legGeom, orangeMat);
+            leg.position.set(p.x, 4.5, p.z);
             group.add(leg);
             legs.push(leg);
         });
     }
 
-    // 共同部分：眼睛
-    const eyeGeom = new THREE.SphereGeometry(0.8, 8, 8);
-    const eyeMat = new THREE.MeshBasicMaterial({ color: 0x000000 });
-    const eye1 = new THREE.Mesh(eyeGeom, eyeMat);
-    eye1.position.set(type === 'dog' ? 14 : 10, 2, type === 'dog' ? 10 : 11);
+    // 眼睛
+    const eyeGeom = new THREE.SphereGeometry(0.6, 16, 16);
+    const eye1 = new THREE.Mesh(eyeGeom, blackMat);
+    eye1.position.set(type === 'dog' ? 15 : 10, 16, 2.5);
     group.add(eye1);
-    const eye2 = new THREE.Mesh(eyeGeom, eyeMat);
-    eye2.position.set(type === 'dog' ? 14 : 10, -2, type === 'dog' ? 10 : 11);
+    const eye2 = new THREE.Mesh(eyeGeom, blackMat);
+    eye2.position.set(type === 'dog' ? 15 : 10, 16, -2.5);
     group.add(eye2);
 
-    return { group, legs };
+    return { group, legs, tail, tongue };
 }
 
-function add3DPet(petType) {
-    const { group, legs } = createPetModel(petType);
-    group.position.x = (Math.random() - 0.5) * 200;
-    group.position.y = (Math.random() - 0.5) * 100;
-    group.position.z = 0;
+// 修改後的更新朝向
+function updatePetRotation(petObj) {
+    const angle = Math.atan2(-petObj.velocityZ, petObj.velocityX);
+    petObj.mesh.rotation.y = angle;
+}
 
+// 建立樹
+function createTree() {
+    const group = new THREE.Group();
+    const trunk = new THREE.Mesh(new THREE.CylinderGeometry(2, 3, 15, 8), new THREE.MeshLambertMaterial({ color: 0x8B4513 }));
+    trunk.position.y = 7.5;
+    group.add(trunk);
+    const leaves = new THREE.Mesh(new THREE.SphereGeometry(12, 16, 16), new THREE.MeshLambertMaterial({ color: 0x2E8B57 }));
+    leaves.position.y = 25;
+    group.add(leaves);
+
+    let r = 80 + Math.random() * 300;
+    let theta = Math.random() * Math.PI * 2;
+    group.position.set(Math.cos(theta) * r, 0, Math.sin(theta) * r);
     scene.add(group);
-
-    const petObj = {
-        mesh: group,
-        legs: legs,
-        type: petType,
-        walking: true,
-        velocityX: (Math.random() - 0.5) * 0.6,
-        velocityY: (Math.random() - 0.5) * 0.6
-    };
-
-    updatePetRotation(petObj);
-    petObjects.push(petObj);
 }
 
-// 從 LocalStorage 載入數據
+// 數據管理
 function loadData() {
     const savedPets = localStorage.getItem('pets');
     const savedNotes = localStorage.getItem('notes');
@@ -335,108 +308,88 @@ function addPet(forcedType = null) {
     const newPet = {
         id: Date.now().toString(),
         type: petType,
-        createdAt: new Date().toISOString()
+        addedAt: new Date().toISOString()
     };
-
     pets.push(newPet);
+    if (petType === 'dog') stats.dogs++;
+    else stats.cats++;
 
-    if (petType === 'dog') {
-        stats.dogs++;
-    } else {
-        stats.cats++;
-    }
-
+    add3DPet(petType);
     saveAllData();
-    if (scene) add3DPet(petType);
     updateUI();
 }
 
-function removePet() {
-    if (pets.length === 0) return;
+function add3DPet(petType) {
+    const { group, legs, tail, tongue } = createPetModel(petType);
+    let r = Math.random() * 200;
+    let theta = Math.random() * Math.PI * 2;
+    group.position.set(Math.cos(theta) * r, 0, Math.sin(theta) * r);
 
-    const randomIndex = Math.floor(Math.random() * pets.length);
-    const petToRemove = pets[randomIndex];
+    scene.add(group);
 
-    if (petToRemove.type === 'dog') {
-        stats.dogs = Math.max(0, stats.dogs - 1);
-    } else {
-        stats.cats = Math.max(0, stats.cats - 1);
-    }
+    const petObj = {
+        mesh: group,
+        legs: legs,
+        tail: tail,
+        tongue: tongue,
+        type: petType,
+        walking: true,
+        velocityX: (Math.random() - 0.5) * 1.0,
+        velocityZ: (Math.random() - 0.5) * 1.0
+    };
 
-    pets.splice(randomIndex, 1);
+    updatePetRotation(petObj);
+    petObjects.push(petObj);
+}
+
+function saveDiary() {
+    const content = diaryContent.value.trim();
+    if (!content) { alert('請輸入內容'); return; }
+
+    const petType = PET_TYPES[Math.floor(Math.random() * PET_TYPES.length)];
+    diaries.unshift({
+        id: Date.now().toString(),
+        content: content,
+        createdAt: new Date().toISOString(),
+        petReward: petType
+    });
+
+    stats.totalDiaries++;
+    addPet(petType);
+    diaryContent.value = '';
     saveAllData();
-
-    if (scene && petObjects.length > randomIndex) {
-        scene.remove(petObjects[randomIndex].mesh);
-        petObjects.splice(randomIndex, 1);
-    }
-
     updateUI();
-    alert(`😢 因為太久沒寫日記，${petToRemove.type === 'dog' ? '🐶' : '🐱'} 離開了農場...`);
+}
+
+function deleteDiary(id) {
+    if (!confirm('確定刪除？')) return;
+    diaries = diaries.filter(d => d.id !== id);
+    stats.totalDiaries = diaries.length;
+    saveAllData();
+    updateUI();
 }
 
 function addNote() {
     const content = noteInput.value.trim();
-    if (!content) {
-        alert('請輸入筆記內容！');
-        return;
-    }
-
-    const newNote = {
-        id: Date.now().toString(),
-        content: content,
-        createdAt: new Date().toISOString()
-    };
-
-    notes.unshift(newNote);
-
+    if (!content) return;
+    notes.push({ id: Date.now().toString(), content });
     noteInput.value = '';
     saveAllData();
     updateUI();
 }
 
-function deleteNote(noteId) {
-    notes = notes.filter(note => note.id !== noteId);
+function deleteNote(id) {
+    notes = notes.filter(n => n.id !== id);
     saveAllData();
     updateUI();
 }
 
-function saveDiary() {
-    const content = diaryContent.value.trim();
-    if (!content) {
-        alert('請輸入日記內容！');
-        return;
-    }
-
-    const petType = PET_TYPES[Math.floor(Math.random() * PET_TYPES.length)];
-
-    const newDiary = {
-        id: Date.now().toString(),
-        content: content,
-        createdAt: new Date().toISOString(),
-        petReward: petType,
-        dateStr: new Date().toDateString()
-    };
-
-    diaries.unshift(newDiary);
-
-    stats.totalDiaries++;
-    stats.lastEntryDate = new Date().toISOString();
-
-    addPet();
-
-    diaryContent.value = '';
+function completeNote(id) {
+    notes = notes.filter(n => n.id !== id);
+    addPet('cat');
     saveAllData();
     updateUI();
-
-    alert(`🎉 日記儲存成功！你獲得了一隻 ${PET_EMOJI[petType]}！`);
-}
-
-function checkMissedDays() {
-    // 移除所有限制，寵物和日記無限制
-    if (warningText) {
-        warningText.style.display = 'none';
-    }
+    alert('獎勵一隻貓咪！');
 }
 
 function updateUI() {
@@ -446,109 +399,34 @@ function updateUI() {
     totalDiaries.textContent = stats.totalDiaries;
 
     notesList.innerHTML = '';
-    if (notes.length === 0) {
-        notesList.innerHTML = '<div class="empty-state"><p>還沒有筆記</p></div>';
-    } else {
-        notes.forEach(note => {
-            const noteItem = document.createElement('li');
-            noteItem.className = 'note-item';
-            noteItem.innerHTML = `
-                <span>${note.content}</span>
-                <div class="note-btns">
-                    <button class="btn-complete" onclick="completeNote('${note.id}')">✅ 完成</button>
-                    <button class="btn-delete" onclick="deleteNote('${note.id}')">🗑️ 刪除</button>
-                </div>
-            `;
-            notesList.appendChild(noteItem);
-        });
-    }
+    notes.forEach(n => {
+        const li = document.createElement('li');
+        li.className = 'note-item';
+        li.innerHTML = `<span>${n.content}</span><div class="note-btns"><button class="btn-complete" onclick="completeNote('${n.id}')">✅</button><button class="btn-delete" onclick="deleteNote('${n.id}')">🗑️</button></div>`;
+        notesList.appendChild(li);
+    });
 
     diaryHistory.innerHTML = '';
-    if (diaries.length === 0) {
-        diaryHistory.innerHTML = '<div class="empty-state"><p>📖</p><p>還沒有日記，開始寫第一篇吧！</p></div>';
-    } else {
-        diaries.forEach(diary => {
-            const diaryEntry = document.createElement('div');
-            diaryEntry.className = 'diary-entry';
-
-            const date = new Date(diary.createdAt);
-            const dateStr = date.toLocaleDateString('zh-TW', {
-                year: 'numeric',
-                month: 'long',
-                day: 'numeric',
-                weekday: 'long'
-            });
-
-            diaryEntry.innerHTML = `
-                <div class="diary-entry-date">
-                    <span>📅 ${dateStr}</span>
-                    <div class="diary-entry-actions">
-                        <span class="pet-reward">獲得: ${PET_EMOJI[diary.petReward]}</span>
-                        <button class="btn-delete-small" onclick="deleteDiary('${diary.id}')">🗑️</button>
-                    </div>
-                </div>
-                <div class="diary-entry-content">${diary.content}</div>
-            `;
-            diaryHistory.appendChild(diaryEntry);
-        });
-    }
+    diaries.forEach(d => {
+        const div = document.createElement('div');
+        div.className = 'diary-entry';
+        div.innerHTML = `<div class="diary-entry-date">📅 ${new Date(d.createdAt).toLocaleDateString()}<button class="btn-delete-small" onclick="deleteDiary('${d.id}')">🗑️</button></div><div class="diary-entry-content">${d.content}</div>`;
+        diaryHistory.appendChild(div);
+    });
 }
 
-function deleteDiary(diaryId) {
-    if (!confirm('確定要刪除這篇日記嗎？這不會移除您已獲得的寵物。')) return;
-    diaries = diaries.filter(d => d.id !== diaryId);
-    stats.totalDiaries = diaries.length;
-    saveAllData();
+function initApp() {
+    loadData();
+    initThreeJS();
+    pets.forEach(p => add3DPet(p.type));
     updateUI();
-}
 
-function completeNote(noteId) {
-    notes = notes.filter(note => note.id !== noteId);
-    addPet('cat');
-    saveAllData();
-    updateUI();
-    alert('🎊 太棒了！完成筆記獲得了一隻 🐱 貓咪！');
+    saveDiaryBtn.addEventListener('click', saveDiary);
+    addNoteBtn.addEventListener('click', addNote);
+    noteInput.addEventListener('keypress', e => e.key === 'Enter' && addNote());
 }
 
 window.deleteNote = deleteNote;
 window.completeNote = completeNote;
 window.deleteDiary = deleteDiary;
-
-function initApp() {
-    console.log('Initializing app...');
-    loadData();
-    checkMissedDays();
-
-    setTimeout(() => {
-        if (!petContainer) {
-            console.error('petContainer not found!');
-            return;
-        }
-        initThreeJS();
-        pets.forEach(pet => {
-            add3DPet(pet.type);
-        });
-        updateUI();
-    }, 100);
-
-    if (saveDiaryBtn) {
-        saveDiaryBtn.addEventListener('click', () => {
-            console.log('Save diary button clicked');
-            saveDiary();
-        });
-    } else {
-        console.error('saveDiaryBtn not found!');
-    }
-
-    if (addNoteBtn) {
-        addNoteBtn.addEventListener('click', addNote);
-    }
-
-    if (noteInput) {
-        noteInput.addEventListener('keypress', (e) => {
-            if (e.key === 'Enter') addNote();
-        });
-    }
-}
-
 document.addEventListener('DOMContentLoaded', initApp);
