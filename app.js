@@ -2,6 +2,10 @@
 // Three.js 3D 場景
 let scene, camera, renderer, controls;
 let petObjects = [];
+let raycaster = new THREE.Raycaster();
+let mouse = new THREE.Vector2();
+let grabbedPet = null;
+let dragPlane = new THREE.Plane(new THREE.Vector3(0, 1, 0), 0); // 地面平面 用於計算拖拽位置
 
 // DOM 元素
 const diaryContent = document.getElementById('diaryContent');
@@ -145,6 +149,73 @@ function initThreeJS() {
 
         renderer.render(scene, camera);
     }
+
+    // 互動事件：滑鼠按下 (抓取)
+    renderer.domElement.addEventListener('mousedown', (e) => {
+        const rect = renderer.domElement.getBoundingClientRect();
+        mouse.x = ((e.clientX - rect.left) / rect.width) * 2 - 1;
+        mouse.y = -((e.clientY - rect.top) / rect.height) * 2 + 1;
+
+        raycaster.setFromCamera(mouse, camera);
+
+        // 檢查是否點到寵物 (我們檢查 petObj.mesh)
+        const meshes = petObjects.map(p => p.mesh);
+        const intersects = raycaster.intersectObjects(meshes, true);
+
+        if (intersects.length > 0) {
+            // 找到點擊到的頂層 Group
+            let object = intersects[0].object;
+            while (object.parent && !petObjects.find(p => p.mesh === object)) {
+                object = object.parent;
+            }
+
+            grabbedPet = petObjects.find(p => p.mesh === object);
+            if (grabbedPet) {
+                grabbedPet.walking = false;
+                if (controls) controls.enabled = false; // 抓取時禁用相機旋轉
+                document.body.style.cursor = 'grabbing';
+            }
+        }
+    });
+
+    // 互動事件：滑鼠移動 (拖拽)
+    renderer.domElement.addEventListener('mousemove', (e) => {
+        if (!grabbedPet) {
+            // 沒抓取時，Hover 效果
+            const rect = renderer.domElement.getBoundingClientRect();
+            mouse.x = ((e.clientX - rect.left) / rect.width) * 2 - 1;
+            mouse.y = -((e.clientY - rect.top) / rect.height) * 2 + 1;
+            raycaster.setFromCamera(mouse, camera);
+            const intersects = raycaster.intersectObjects(petObjects.map(p => p.mesh), true);
+            renderer.domElement.style.cursor = intersects.length > 0 ? 'pointer' : 'default';
+            return;
+        }
+
+        const rect = renderer.domElement.getBoundingClientRect();
+        mouse.x = ((e.clientX - rect.left) / rect.width) * 2 - 1;
+        mouse.y = -((e.clientY - rect.top) / rect.height) * 2 + 1;
+
+        raycaster.setFromCamera(mouse, camera);
+
+        // 計算鼠標在地面平面上的交點
+        let intersects = new THREE.Vector3();
+        if (raycaster.ray.intersectPlane(dragPlane, intersects)) {
+            grabbedPet.mesh.position.x = intersects.x;
+            grabbedPet.mesh.position.z = intersects.z;
+            grabbedPet.mesh.position.y = 20; // 抓起來的高度
+        }
+    });
+
+    // 互動事件：滑鼠放開 (放下)
+    window.addEventListener('mouseup', () => {
+        if (grabbedPet) {
+            grabbedPet.walking = true;
+            grabbedPet.mesh.position.y = 0; // 放回地面
+            grabbedPet = null;
+            if (controls) controls.enabled = true;
+            document.body.style.cursor = 'default';
+        }
+    });
 
     animate();
 
