@@ -1236,13 +1236,18 @@ function createClosedEnclosure(centerX, centerZ, size) {
     }
 }
 
-// 數據管理 (強健版)
+// 數據管理 (強健版 + 診斷)
 function loadData() {
     try {
         const savedPets = localStorage.getItem('pets');
         const savedNotes = localStorage.getItem('notes');
         const savedDiaries = localStorage.getItem('diaries');
         const savedStats = localStorage.getItem('stats');
+
+        console.log("正在從 LocalStorage 載入資料...", {
+            hasPets: !!savedPets,
+            hasDiaries: !!savedDiaries
+        });
 
         if (savedPets) pets = JSON.parse(savedPets);
         if (savedNotes) notes = JSON.parse(savedNotes);
@@ -1253,9 +1258,13 @@ function loadData() {
         stats.dogs = pets.filter(p => p.type === 'dog').length;
         stats.cats = pets.filter(p => p.type === 'cat').length;
         stats.totalDiaries = diaries.length;
+
+        console.log("資料載入解析成功:", {
+            petsCount: pets.length,
+            diariesCount: diaries.length
+        });
     } catch (e) {
-        console.error("載入失敗，正在嘗試修復資料...", e);
-        // 如果解析失敗，保留預設值避免毀滅性清空
+        console.error("LocalStorage 載入失敗或損毀:", e);
     }
 }
 
@@ -1331,7 +1340,7 @@ function addPet(forcedType = null) {
     alert(`🎉 恭喜獲得 ${BREED_NAMES[breed]} ${emoji}！`);
 }
 
-function add3DPet(breed) {
+function add3DPet(breed, id = null) {
     const { group, legs, tail, tongue } = createPetModel(breed);
     const hint = createHintSprite();
     group.add(hint);
@@ -1343,6 +1352,7 @@ function add3DPet(breed) {
     scene.add(group);
 
     const petObj = {
+        id: id || Date.now().toString() + Math.random(), // 確保唯一性
         mesh: group,
         legs: legs,
         tail: tail,
@@ -1482,7 +1492,7 @@ function initApp() {
         const breed = p.breed || p.type || 'shiba';
         const validBreeds = ['shiba', 'corgi', 'munchkin'];
         const finalBreed = validBreeds.includes(breed) ? breed : 'shiba';
-        add3DPet(finalBreed);
+        add3DPet(finalBreed, p.id);
     });
     updateUI();
 
