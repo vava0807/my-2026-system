@@ -313,25 +313,8 @@ function saveDiary() {
 }
 
 function checkMissedDays() {
-    if (!stats.lastEntryDate) return;
-    
-    const now = new Date();
-    const lastEntry = new Date(stats.lastEntryDate);
-    const daysDiff = Math.floor((now - lastEntry) / (1000 * 60 * 60 * 24));
-    
-    if (daysDiff >= 3 && pets.length > 0) {
-        const petsToRemove = Math.floor(daysDiff / 3);
-        for (let i = 0; i < petsToRemove && pets.length > 0; i++) {
-            removePet();
-        }
-    }
-    
-    if (daysDiff >= 1 && daysDiff < 3) {
-        warningText.style.display = 'block';
-        daysSinceLastEntry.textContent = daysDiff;
-    } else {
-        warningText.style.display = 'none';
-    }
+    // 移除所有限制，寵物和日記無限制
+    warningText.style.display = 'none';
 }
 
 function updateUI() {
