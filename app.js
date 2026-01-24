@@ -24,10 +24,6 @@ let farmEnclosures = []; // 存儲閉合圍籬的範圍
 let smokeParticles = []; // 帳篷冒煙粒子
 let butterflies = []; // 儲存蝴蝶物件
 let rainbow; // 彩虹物件
-let dolphins = []; // 海豚物件
-let whale; // 鯨魚物件
-let spoutParticles = []; // 鯨魚噴水粒子
-let fishes = []; // 小魚物件
 
 // DOM 元素
 const diaryContent = document.getElementById('diaryContent');
@@ -121,18 +117,6 @@ function initThreeJS() {
     ground.rotation.x = -Math.PI / 2;
     scene.add(ground);
 
-    // 大海 (外圍 - 擴張版)
-    const seaGeom = new THREE.CircleGeometry(700, 32);
-    const seaMat = new THREE.MeshPhongMaterial({
-        color: 0x006994,
-        transparent: true,
-        opacity: 0.9,
-        shininess: 100
-    });
-    const sea = new THREE.Mesh(seaGeom, seaMat);
-    sea.rotation.x = -Math.PI / 2;
-    sea.position.y = -10; // 低於地面
-    scene.add(sea);
 
     // 光源
     const ambientLight = new THREE.AmbientLight(0xffffff, 0.8);
@@ -197,21 +181,6 @@ function initThreeJS() {
     }
 
 
-    // 海洋生態 (分佈在島嶼外圍 450 ~ 650 範圍)
-    createDolphin(500, -20, 0);
-    createDolphin(-400, -20, 500);
-    createWhale(0, -40, -550);
-
-    // 增加魚群 (色彩鮮豔的熱帶魚 - 增加到 40 隻，速度調至極慢，且遠離陸地)
-    const fishColors = [0xff6b6b, 0xffd93d, 0x6bcbff, 0x95e1d3, 0xfce38a];
-    for (let i = 0; i < 40; i++) {
-        const r = 520 + Math.random() * 150; // 外移至更遠的海域 (距離陸地 >120 單位)
-        const theta = Math.random() * Math.PI * 2;
-        const fx = Math.cos(theta) * r;
-        const fz = Math.sin(theta) * r;
-        const fy = -15 - Math.random() * 30;
-        createFish(fx, fy, fz, fishColors[Math.floor(Math.random() * fishColors.length)]);
-    }
 
     // 建立小女生
     const girlModel = createGirlModel();
@@ -410,82 +379,6 @@ function initThreeJS() {
             b.group.rotation.y += 0.01;
         });
 
-        // 海豚跳躍動畫
-        dolphins.forEach(d => {
-            d.jumpTimer += 0.02;
-            const jumpProgress = (d.jumpTimer + d.offset) % (Math.PI * 2);
-
-            // 海豚只有在跳躍週期的一部分時才會露出海面
-            if (jumpProgress < Math.PI) {
-                const jumpHeight = Math.sin(jumpProgress) * 60;
-                d.group.position.y = -20 + jumpHeight;
-                // 旋轉模擬跳躍姿勢
-                d.group.rotation.x = -Math.cos(jumpProgress) * 1.2;
-            } else {
-                d.group.position.y = -80; // 沉入海中
-            }
-        });
-
-        // 鯨魚動畫與噴水
-        if (whale) {
-            // 抹香鯨緩慢游動 (在深度 -40 ~ -60 之間)
-            whale.group.position.z += Math.sin(time * 0.2) * 0.2;
-            whale.group.position.y = -50 + Math.sin(time * 0.5) * 5;
-
-            // 定時噴水 (垂直水柱版)
-            if (Math.sin(time * 1.5) > 0.8) {
-                for (let i = 0; i < 5; i++) { // 增加粒子數
-                    const sp = spoutParticles[Math.floor(Math.random() * spoutParticles.length)];
-                    if (sp.material.opacity < 0.1) {
-                        // 從方頭的前端噴出
-                        sp.position.set(whale.group.position.x, whale.group.position.y + 40, whale.group.position.z);
-                        sp.material.opacity = 0.9;
-                        sp.userData.vy = 4.0 + Math.random() * 2.0; // 明顯向上的初速度
-                        sp.userData.vx = (Math.random() - 0.5) * 0.2; // 極小擴散
-                        sp.userData.vz = (Math.random() - 0.5) * 0.2;
-                        sp.scale.set(0.8, 0.8, 0.8);
-                    }
-                }
-            }
-        }
-
-        // 魚群動畫 (環島游動)
-        fishes.forEach(f => {
-            f.angle += f.speed;
-            f.group.position.x = Math.cos(f.angle) * f.radius;
-            f.group.position.z = Math.sin(f.angle) * f.radius;
-            f.group.rotation.y = -f.angle + Math.PI; // 臉部朝向前方
-
-            // 跳躍週期邏輯 (節奏調至極慢)
-            const jumpTime = (time * 0.3 + f.offset) % (Math.PI * 2);
-            if (jumpTime < Math.PI) {
-                // 向上躍起
-                const jumpHeight = Math.sin(jumpTime) * 12; // 稍微調低跳躍高度
-                f.group.position.y = -15 + jumpHeight;
-                f.group.rotation.x = -Math.cos(jumpTime) * 0.8;
-            } else {
-                // 水面下潛游
-                f.group.position.y = -15 + Math.sin(time * 1.5 + f.offset) * 1.0;
-                f.group.rotation.x = 0;
-            }
-
-            // 尾巴擺動 (節奏調至最慢)
-            if (f.tail) {
-                f.tail.rotation.y = Math.sin(time * 8 + f.offset) * 0.5;
-            }
-        });
-
-        // 鯨魚噴水粒子更新
-        spoutParticles.forEach(p => {
-            if (p.material.opacity > 0) {
-                p.position.y += p.userData.vy;
-                p.position.x += p.userData.vx;
-                p.position.z += p.userData.vz;
-                p.userData.vy -= 0.3; // 強重力感，水往上噴後迅速落下
-                p.material.opacity -= 0.04; // 消失得更快
-                p.scale.multiplyScalar(1.05);
-            }
-        });
 
         renderer.render(scene, camera);
     }
@@ -1047,126 +940,7 @@ function createButterfly(x, y, z) {
     });
 }
 
-// 海洋已整合至圓形地面
-
-// 建立跳躍海豚
-function createDolphin(x, y, z) {
-    const group = new THREE.Group();
-    const dMat = new THREE.MeshPhongMaterial({ color: 0x87CEEB });
-
-    // 身體 (使用 CylinderGeometry 替代 CapsuleGeometry 以相容 r128)
-    const body = new THREE.Mesh(new THREE.CylinderGeometry(5, 5, 12, 8), dMat);
-    body.rotation.z = Math.PI / 2;
-    group.add(body);
-
-    // 背鰭
-    const fin = new THREE.Mesh(new THREE.BoxGeometry(1, 6, 4), dMat);
-    fin.position.y = 4;
-    fin.rotation.x = -Math.PI / 4;
-    group.add(fin);
-
-    group.position.set(x, y, z);
-    group.rotation.y = Math.PI / 2;
-    scene.add(group);
-
-    dolphins.push({
-        group: group,
-        jumpTimer: 0,
-        offset: Math.random() * Math.PI * 2
-    });
-}
-
-// 建立抹香鯨與噴水 (精緻化方頭版)
-function createWhale(x, y, z) {
-    const group = new THREE.Group();
-    const wMat = new THREE.MeshPhongMaterial({ color: 0x4B4B4B });
-
-    // 抹香鯨特徵的大頭 (巨大的矩形前端)
-    const head = new THREE.Mesh(new THREE.BoxGeometry(35, 30, 50), wMat);
-    head.position.set(0, 15, 25);
-    group.add(head);
-
-    // 身體 (逐漸變細的後半部)
-    const body = new THREE.Mesh(new THREE.BoxGeometry(25, 20, 60), wMat);
-    body.position.set(0, 13, -25);
-    group.add(body);
-
-    // 尾部鰭
-    const tailFluke = new THREE.Mesh(new THREE.BoxGeometry(40, 2, 20), wMat);
-    tailFluke.position.set(0, 15, -60);
-    group.add(tailFluke);
-
-    // 側面小鰭
-    const finL = new THREE.Mesh(new THREE.BoxGeometry(10, 2, 15), wMat);
-    finL.position.set(18, 5, 0);
-    finL.rotation.z = 0.5;
-    group.add(finL);
-
-    const finR = new THREE.Mesh(new THREE.BoxGeometry(10, 2, 15), wMat);
-    finR.position.set(-18, 5, 0);
-    finR.rotation.z = -0.5;
-    group.add(finR);
-
-    group.position.set(x, y, z);
-    group.rotation.y = Math.PI * 0.25; // 朝向海洋中心
-    scene.add(group);
-
-    whale = { group: group };
-
-    // 初始化噴水粒子
-    const spoutMat = new THREE.MeshBasicMaterial({ color: 0xffffff, transparent: true, opacity: 0 });
-    const spoutGeom = new THREE.SphereGeometry(1.5, 8, 8);
-    for (let i = 0; i < 30; i++) {
-        const p = new THREE.Mesh(spoutGeom, spoutMat.clone());
-        p.position.set(x, y + 40, z);
-        scene.add(p);
-        spoutParticles.push(p);
-    }
-}
-
-// 建立小型熱帶魚
-function createFish(x, y, z, color) {
-    const group = new THREE.Group();
-    const fMat = new THREE.MeshPhongMaterial({ color: color });
-
-    // 魚身 (流線型扁平體)
-    const bodyGeom = new THREE.BoxGeometry(4, 3, 1);
-    const body = new THREE.Mesh(bodyGeom, fMat);
-    group.add(body);
-
-    // 魚尾 (三角形)
-    const tailGeom = new THREE.ConeGeometry(2, 4, 3);
-    const tail = new THREE.Mesh(tailGeom, fMat);
-    tail.rotation.z = Math.PI / 2;
-    tail.rotation.y = Math.PI / 2;
-    tail.position.x = -3;
-    group.add(tail);
-
-    // 眼睛
-    const eyeGeom = new THREE.SphereGeometry(0.3, 8, 8);
-    const eyeMat = new THREE.MeshBasicMaterial({ color: 0x000000 });
-    const eyeL = new THREE.Mesh(eyeGeom, eyeMat);
-    eyeL.position.set(1.5, 0.5, 0.5);
-    group.add(eyeL);
-    const eyeR = new THREE.Mesh(eyeGeom, eyeMat);
-    eyeR.position.set(1.5, 0.5, -0.5);
-    group.add(eyeR);
-
-    group.position.set(x, y, z);
-    scene.add(group);
-
-    const dist = Math.sqrt(x * x + z * z);
-    const angle = Math.atan2(z, x);
-
-    fishes.push({
-        group: group,
-        tail: tail,
-        radius: dist,
-        angle: angle,
-        speed: 0.001 + Math.random() * 0.002, // 進一步減慢環島速度
-        offset: Math.random() * Math.PI * 2
-    });
-}
+// 海洋已清除
 
 // 建立河流 (縮短至島嶼內，避免伸入海面)
 function createRiver() {
@@ -1354,10 +1128,33 @@ function loadData() {
             hasDiaries: !!savedDiaries
         });
 
-        if (savedPets) pets = JSON.parse(savedPets);
-        if (savedNotes) notes = JSON.parse(savedNotes);
-        if (savedDiaries) diaries = JSON.parse(savedDiaries);
-        if (savedStats) stats = JSON.parse(savedStats);
+        if (savedPets) {
+            try {
+                const parsed = JSON.parse(savedPets);
+                if (Array.isArray(parsed)) pets = parsed;
+            } catch (e) { console.error("Pets 解析失敗"); }
+        }
+
+        if (savedNotes) {
+            try {
+                const parsed = JSON.parse(savedNotes);
+                if (Array.isArray(parsed)) notes = parsed;
+            } catch (e) { console.error("Notes 解析失敗"); }
+        }
+
+        if (savedDiaries) {
+            try {
+                const parsed = JSON.parse(savedDiaries);
+                if (Array.isArray(parsed)) diaries = parsed;
+            } catch (e) { console.error("Diaries 解析失敗"); }
+        }
+
+        if (savedStats) {
+            try {
+                const parsed = JSON.parse(savedStats);
+                if (parsed && typeof parsed === 'object') stats = { ...stats, ...parsed };
+            } catch (e) { console.error("Stats 解析失敗"); }
+        }
 
         // 關鍵修正：確保 stats 的數量與實際陣列一致
         stats.dogs = pets.filter(p => p.type === 'dog').length;
@@ -1554,11 +1351,28 @@ function deleteNote(id) {
 }
 
 function completeNote(id) {
+    const note = notes.find(n => n.id === id);
+    if (!note) return;
+
+    // 1. 將內容存入日記歷史 (連動功能)
+    diaries.unshift({
+        id: Date.now().toString() + "_note",
+        content: `[筆記完成] ${note.content}`,
+        createdAt: new Date().toISOString(),
+        petReward: 'munchkin' // 筆記統一獎勵貓咪
+    });
+
+    // 2. 移除筆記
     notes = notes.filter(n => n.id !== id);
-    addPet('cat'); // 筆記獎勵一定是貓
+
+    // 3. 獲取獎勵
+    addPet('cat');
+
+    // 4. 更新統計與存檔
+    stats.totalDiaries = diaries.length;
     saveAllData();
     updateUI();
-    alert('獎勵一隻貓咪！');
+    alert('筆記已轉存日記，並獎勵一隻貓咪！🐈');
 }
 
 function updateUI() {
