@@ -277,8 +277,12 @@ function initThreeJS() {
             let nextX = girl.mesh.position.x + Math.cos(girl.angle) * girl.speed;
             let nextZ = girl.mesh.position.z + Math.sin(girl.angle) * girl.speed;
 
-            // 邊界檢查
-            if (isPositionOnWater(nextX, nextZ)) {
+            // 邊界與圍籬檢查
+            const nextInEnclosure = isInEnclosure(nextX, nextZ, 5);
+            const currentInEnclosure = isInEnclosure(girl.mesh.position.x, girl.mesh.position.z, 5);
+
+            if (isPositionOnWater(nextX, nextZ) || nextInEnclosure !== currentInEnclosure) {
+                // 撞牆或落水，轉向
                 girl.angle += Math.PI * (0.8 + Math.random() * 0.4);
             } else {
                 girl.mesh.position.x = nextX;
