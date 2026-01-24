@@ -209,6 +209,39 @@ async function deleteNote(noteId) {
     }
 }
 
+// 完成筆記 - 移至日記歷史
+async function completeNote(noteId) {
+    try {
+        const noteToComplete = notes.find(note => note.id === noteId);
+        if (!noteToComplete) {
+            alert('找不到該筆記！');
+            return;
+        }
+
+        // 創建新日記項目
+        const newDiary = {
+            content: noteToComplete.content,
+            createdAt: new Date(),
+            petReward: '📝', // 筆記轉換的標記
+            isFromNote: true
+        };
+        
+        // 添加到 Firestore
+        const docRef = await addDoc(collection(db, 'diaries'), newDiary);
+        diaries.unshift({ id: docRef.id, ...newDiary });
+        
+        // 刪除原本的筆記
+        await deleteDoc(doc(db, 'notes', noteId));
+        notes = notes.filter(note => note.id !== noteId);
+        
+        updateUI();
+        alert('✅ 筆記已完成，轉移到日記歷史！');
+    } catch (error) {
+        console.error('完成筆記失敗:', error);
+        alert('完成筆記失敗，請重試！');
+    }
+}
+
 // 載入日記
 async function loadDiaries() {
     try {
@@ -334,7 +367,10 @@ function updateUI() {
             noteItem.className = 'note-item';
             noteItem.innerHTML = `
                 <span>${note.content}</span>
-                <button onclick="deleteNote('${note.id}')">🗑️ 刪除</button>
+                <div class="note-actions">
+                    <button onclick="completeNote('${note.id}')" class="btn-success">✅ 完成</button>
+                    <button onclick="deleteNote('${note.id}')" class="btn-danger">🗑️ 刪除</button>
+                </div>
             `;
             notesList.appendChild(noteItem);
         });
@@ -420,8 +456,9 @@ noteInput.addEventListener('keypress', (e) => {
     }
 });
 
-// 將 deleteNote 暴露到全域作用域
+// 將 deleteNote 和 completeNote 暴露到全域作用域
 window.deleteNote = deleteNote;
+window.completeNote = completeNote;
 
 // 初始化應用
 initApp();
