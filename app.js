@@ -1116,6 +1116,9 @@ function createClosedEnclosure(centerX, centerZ, size) {
 }
 
 // 數據管理 (強健版 + 診斷)
+let lastValidPetsCount = 0;
+let lastValidDiariesCount = 0;
+
 function loadData() {
     try {
         const savedPets = localStorage.getItem('pets');
@@ -1124,14 +1127,18 @@ function loadData() {
         const savedStats = localStorage.getItem('stats');
 
         console.log("正在從 LocalStorage 載入資料...", {
-            hasPets: !!savedPets,
-            hasDiaries: !!savedDiaries
+            protocol: window.location.protocol,
+            host: window.location.host,
+            hasPets: !!savedPets
         });
 
         if (savedPets) {
             try {
                 const parsed = JSON.parse(savedPets);
-                if (Array.isArray(parsed)) pets = parsed;
+                if (Array.isArray(parsed)) {
+                    pets = parsed;
+                    lastValidPetsCount = pets.length;
+                }
             } catch (e) { console.error("Pets 解析失敗"); }
         }
 
@@ -1145,7 +1152,10 @@ function loadData() {
         if (savedDiaries) {
             try {
                 const parsed = JSON.parse(savedDiaries);
-                if (Array.isArray(parsed)) diaries = parsed;
+                if (Array.isArray(parsed)) {
+                    diaries = parsed;
+                    lastValidDiariesCount = diaries.length;
+                }
             } catch (e) { console.error("Diaries 解析失敗"); }
         }
 
