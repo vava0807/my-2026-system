@@ -1213,10 +1213,20 @@ function importData() {
 }
 
 function saveAllData() {
+    // 防呆保護：如果原本有資料，但現在變成空的，不允許自動覆蓋
+    if (lastValidPetsCount > 0 && pets.length === 0) {
+        console.warn("偵測到可能的資料遺失，取消自動存檔以保護舊資料。");
+        return;
+    }
+
     localStorage.setItem('pets', JSON.stringify(pets));
     localStorage.setItem('notes', JSON.stringify(notes));
     localStorage.setItem('diaries', JSON.stringify(diaries));
     localStorage.setItem('stats', JSON.stringify(stats));
+
+    // 更新最後驗證數量
+    lastValidPetsCount = pets.length;
+    lastValidDiariesCount = diaries.length;
 }
 
 function addPet(forcedType = null) {
