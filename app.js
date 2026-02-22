@@ -1255,6 +1255,12 @@ function addPet(forcedType = null) {
         addedAt: new Date().toISOString()
     };
     pets.push(newPet);
+
+    // 同步寵物到雲端
+    if (window.dbSync) {
+        window.dbSync.savePet(newPet);
+    }
+
     if (type === 'dog') stats.dogs++;
     else stats.cats++;
 
@@ -1308,6 +1314,11 @@ function saveDiary() {
         createdAt: new Date().toISOString(),
         petReward: breed
     });
+
+    // 獲取最新日記並同步到雲端
+    if (window.dbSync) {
+        window.dbSync.saveDiary(diaries[0]);
+    }
 
     stats.totalDiaries++;
     addPet(type);

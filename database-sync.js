@@ -30,7 +30,7 @@ class DatabaseSync {
         return newDiaryRef.key;
       } catch (error) {
         console.error('儲存日記失敗:', error);
-        this.saveTol localStorage(diaryData);
+        this.saveToLocalStorage(diaryData);
       }
     } else {
       this.saveToLocalStorage(diaryData);
@@ -50,6 +50,23 @@ class DatabaseSync {
         return newNoteRef.key;
       } catch (error) {
         console.error('儲存筆記失敗:', error);
+      }
+    }
+  }
+
+  // 儲存寵物
+  async savePet(petData) {
+    if (this.isFirebaseReady) {
+      try {
+        const newPetRef = this.database.ref('pets').push();
+        await newPetRef.set({
+          ...petData,
+          timestamp: firebase.database.ServerValue.TIMESTAMP
+        });
+        console.log('寵物已儲存至 Firebase');
+        return newPetRef.key;
+      } catch (error) {
+        console.error('儲存寵物失敗:', error);
       }
     }
   }
@@ -95,6 +112,28 @@ class DatabaseSync {
       }
     } else {
       return this.getFromLocalStorage('notes') || [];
+    }
+  }
+
+  // 獲取所有寵物
+  async getAllPets() {
+    if (this.isFirebaseReady) {
+      try {
+        const snapshot = await this.database.ref('pets').once('value');
+        const pets = [];
+        snapshot.forEach((child) => {
+          pets.push({
+            id: child.key,
+            ...child.val()
+          });
+        });
+        return pets;
+      } catch (error) {
+        console.error('獲取寵物失敗:', error);
+        return this.getFromLocalStorage('pets') || [];
+      }
+    } else {
+      return this.getFromLocalStorage('pets') || [];
     }
   }
 
